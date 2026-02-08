@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Volt.Utils; // hinzufügen
 
 
 namespace Volt
@@ -16,6 +17,7 @@ namespace Volt
         private readonly NVOC _nvoc = new();
         private readonly LibreHW _hwinfo = new LibreHW();
         private readonly CancellationTokenSource _cts = new();
+        private SettingsStore.Settings _settings = new(); // neu
 
         // variables
         //Graph_FanCurve
@@ -43,10 +45,26 @@ namespace Volt
         // *********************************************************************************************************************************
         private void Initialize()
         {
+            _settings = SettingsStore.Load(); // laden
+
             lb_driverV.Content = _nvoc.get_DriverVersion();
 
-            tb_fanSpeed.Text = _nvoc.get_FanSpeed();
-            slider_fanSpeed.Value = int.Parse(tb_fanSpeed.Text);
+            if (_settings.AutoFan)
+            {
+                cb_autoFanSpeed.IsChecked = true;
+                slider_fanSpeed.IsEnabled = false;
+                tb_fanSpeed.IsEnabled = false;
+                _nvoc.RestoreDefaultFanCurve();
+            }
+            else
+            {
+                var fanSpeedText = _settings.FanSpeed > 0
+                    ? _settings.FanSpeed.ToString()
+                    : _nvoc.get_FanSpeed();
+
+                tb_fanSpeed.Text = fanSpeedText;
+                slider_fanSpeed.Value = int.Parse(fanSpeedText);
+            }
 
             // Starte den asynchronen Task
             _ = DoWorkAsync(this, _cts.Token);
@@ -90,7 +108,11 @@ namespace Volt
         // *********************************************************************************************************************************
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            _cts.Cancel(); // Beendet den Hintergrundtask
+            _cts.Cancel();
+            //_settings.AutoFan = cb_autoFanSpeed.IsChecked == true;
+            //_settings.FanSpeed = int.TryParse(tb_fanSpeed.Text, out var fs) ? fs : _settings.FanSpeed;
+            saveSettingsInJSON();
+            SettingsStore.Save(_settings);
         }
         // *********************************************************************************************************************************
         private void slider_fanSpeed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -129,6 +151,7 @@ namespace Volt
         // Beenden der Anwendung
         private void CloseApplication(object sender, RoutedEventArgs e)
         {
+            Window_Closing(sender, new System.ComponentModel.CancelEventArgs());
             Application.Current.Shutdown();
             GC.Collect();
         }
@@ -173,6 +196,13 @@ namespace Volt
             using var identity = WindowsIdentity.GetCurrent();
             var principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        private string saveSettingsInJSON()
+        {
+            _settings.AutoFan = cb_autoFanSpeed.IsChecked == true;
+            _settings.FanSpeed = int.TryParse(tb_fanSpeed.Text, out var fs) ? fs : _settings.FanSpeed;
+            return _settings?.ToString() ?? string.Empty;
         }
 
     }
