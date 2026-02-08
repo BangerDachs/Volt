@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using NvAPIWrapper.GPU;
+using System.Diagnostics;
 using System.Reflection;
 using System.Security.Principal;
 using System.Threading.Tasks;
@@ -80,15 +81,9 @@ namespace Volt
                 //_mw.lb_load_curr_load.Content = _hwinfo.GPU_load;
                 _mw.lb_memory_curr_memory.Content = _hwinfo.GPU_mem_usage;
 
+                string fanSpeed = _mw._nvoc.get_FanSpeed();
+                _mw.tb_fanSpeed.Text = fanSpeed;
 
-                if (_mw.cb_autoFanSpeed.IsChecked == true)
-                {
-                    string fanSpeed = _mw._nvoc.get_FanSpeed();
-                    //_mw.tb_fanSpeed.Text = fanSpeed;
-                    //_mw.slider_fanSpeed.Value = int.Parse(fanSpeed);
-                }
-
-                // Fix for CS0176: Access the constant using the type name instead of the instance
                 await Task.Delay(UDefinition.cUpdateInterval); // Intervall 500ms
             }
         }
@@ -111,8 +106,7 @@ namespace Volt
             {
                 slider_fanSpeed.IsEnabled = false;
                 tb_fanSpeed.IsEnabled = false;
-                //btn_FanSpeed_ok.IsEnabled = false;
-                _nvoc.set_FanSpeed(default);
+                _nvoc.RestoreDefaultFanCurve(); // auf Standard-Lüfterkurve zurücksetzen
             }
         }
         // *********************************************************************************************************************************
@@ -122,7 +116,6 @@ namespace Volt
             {
                 slider_fanSpeed.IsEnabled = true;
                 tb_fanSpeed.IsEnabled = true;
-                //btn_FanSpeed_ok.IsEnabled = true;
                 _nvoc.set_FanSpeed((int)slider_fanSpeed.Value);
             }
         }

@@ -61,6 +61,20 @@ namespace Volt
                 }
             }
         }
+
+        public void RestoreDefaultFanCurve()
+        {
+            if (gpu?.CoolerInformation == null) return;
+
+            try
+            {
+                gpu.CoolerInformation.RestoreCoolerSettingsToDefault();//SetDefaultCoolerSettings(); // Werkseinstellungen der Lüfterkurve
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Fehler beim Zurücksetzen der Lüfterkurve: {ex.Message}");
+            }
+        }
         // *********************************************************************************************************************************
         //Fan Curve
         public void set_SetFan(int[] newCurve)
