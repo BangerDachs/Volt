@@ -25,6 +25,7 @@ namespace Volt
         // Drag-Status für das Verschieben von Punkten
         private bool _isDragging;
         private int _dragIndex = -1;
+        private int _pointsMaxCount = 10;
 
         // Gibt die aktuelle Kurve für den Aufrufer zurück
         public IReadOnlyList<Coordinates> Points => _points;
@@ -48,6 +49,7 @@ namespace Volt
             Graph_FanCurve.MouseMove += Graph_FanCurve_MouseMove;
             Graph_FanCurve.MouseUp += Graph_FanCurve_MouseUp;
             Graph_FanCurve.MouseLeave += Graph_FanCurve_MouseLeave;
+            Graph_FanCurve.MouseDoubleClick += Graph_FanCurve_MouseDoubleClick;
         }
 
         private void FanCurve_Loaded(object sender, RoutedEventArgs e)
@@ -178,6 +180,33 @@ namespace Volt
             // Änderungen verwerfen
             DialogResult = false;
             Close();
+        }
+
+        private void Graph_FanCurve_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (_points.Count >= _pointsMaxCount)
+                return; // Maximale Anzahl an Punkten erreicht
+
+            // Punkt an der geklickten Position hinzufügen
+            Coordinates mouse = GetMouseCoordinates(e);
+            int insertIndex = _points.FindIndex(p => p.X > mouse.X);
+            if (insertIndex < 0)
+                insertIndex = _points.Count;
+
+            double minX = insertIndex > 0 ? _points[insertIndex - 1].X + 0.1 : 0;
+            double maxX = insertIndex < _points.Count ? _points[insertIndex].X - 0.1 : 100;
+
+            if (minX > maxX)
+                return; // Kein Platz zwischen den Punkten
+
+            if (mouse.X < minX || mouse.X > maxX)
+                return; // Ungültige Position, Punkt nicht hinzufügen
+
+            double x = Math.Clamp(mouse.X, minX, maxX);
+            double y = Math.Clamp(mouse.Y, 0, 100);
+
+            _points.Insert(insertIndex, new Coordinates(x, y));
+            RenderPlot();
         }
     }
 }
