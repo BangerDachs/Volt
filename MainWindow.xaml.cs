@@ -1,4 +1,6 @@
 ﻿using NvAPIWrapper.GPU;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Principal;
@@ -19,6 +21,15 @@ namespace Volt
         private readonly LibreHW _hwinfo = new LibreHW();
         private readonly CancellationTokenSource _cts = new();
         private SettingsStore.Settings _settings = new(); // neu
+
+        private readonly ObservableCollection<ClockRow> _clockRows = new();
+        private ClockRow _rowGpuTemp = null!;
+        private ClockRow _rowCoreClock = null!;
+        private ClockRow _rowMemClock = null!;
+        private ClockRow _rowVoltage = null!;
+        private ClockRow _rowPower = null!;
+        private ClockRow _rowLoad = null!;
+        private ClockRow _rowMemory = null!;
 
         // variables
         //Graph_FanCurve
@@ -50,6 +61,7 @@ namespace Volt
             _settings = SettingsStore.Load(); // laden
 
             lb_driverV.Content = _nvoc.get_DriverVersion();
+            InitializeClockRows();
 
             if (_settings.AutoFan)
             {
@@ -70,6 +82,28 @@ namespace Volt
 
             _ = DoWorkAsync(this, _cts.Token);
         }
+
+        private void InitializeClockRows()
+        {
+            _rowGpuTemp = new ClockRow("GPU Temperature", "--");
+            _rowCoreClock = new ClockRow("Core Clock", "--");
+            _rowMemClock = new ClockRow("Memory Clock", "--");
+            _rowVoltage = new ClockRow("Curr. Voltage", "--");
+            _rowPower = new ClockRow("Curr. Power", "--");
+            _rowLoad = new ClockRow("Curr. Load", "--");
+            _rowMemory = new ClockRow("Curr. Memory", "--");
+
+            _clockRows.Clear();
+            _clockRows.Add(_rowGpuTemp);
+            _clockRows.Add(_rowCoreClock);
+            _clockRows.Add(_rowMemClock);
+            _clockRows.Add(_rowVoltage);
+            _clockRows.Add(_rowPower);
+            _clockRows.Add(_rowLoad);
+            _clockRows.Add(_rowMemory);
+
+            dataGrid_clocks.ItemsSource = _clockRows;
+        }
         // *********************************************************************************************************************************
         private async Task DoWorkAsync(MainWindow _mw, CancellationToken token)
         {
@@ -78,23 +112,23 @@ namespace Volt
                 string gpuTempText = _mw._nvoc.get_GPUCoreTemperature();
                 double? gpuTempValue = double.TryParse(gpuTempText, out var tempValue) ? tempValue : null;
 
-                _mw.lb_gpu_temp_sensor.Content = gpuTempValue.HasValue
+                _mw._rowGpuTemp.Value = gpuTempValue.HasValue
                     ? $"{tempValue:F1} °C"
                     : $"{gpuTempText} °C";
 
                 string[] clocks = _mw._nvoc.get_ClockSpeed();
-                _mw.lb_gpu_frequency.Content = ($"{clocks[0]:F1} mhz");
-                _mw.lb_mem_frequency.Content = ($"{clocks[1]:F1} mhz");
+                _mw._rowCoreClock.Value = $"{clocks[0]:F1} mhz";
+                _mw._rowMemClock.Value = $"{clocks[1]:F1} mhz";
 
                 string gpuVoltCurr = _mw._nvoc.get_Voltage();
-                _mw.lb_voltage_curr_voltage.Content = gpuVoltCurr;
+                _mw._rowVoltage.Value = gpuVoltCurr;
 
                 string gpuUsage = _nvoc.get_GPU_usage();
-                _mw.lb_load_curr_load.Content = gpuUsage;
+                _mw._rowLoad.Value = gpuUsage;
 
                 _hwinfo.Read_GPU_InformationAsync();
-                _mw.lb_power_curr_power.Content = _hwinfo.GPU_power;
-                _mw.lb_memory_curr_memory.Content = _hwinfo.GPU_mem_usage;
+                _mw._rowPower.Value = _hwinfo.GPU_power;
+                _mw._rowMemory.Value = _hwinfo.GPU_mem_usage;
 
                 if (_mw._settings.AutoFan)
                 {
@@ -115,6 +149,33 @@ namespace Volt
                 }
 
                 await Task.Delay(UDefinition.cUpdateInterval);
+            }
+        }
+
+        private sealed class ClockRow : INotifyPropertyChanged
+        {
+            private string _value;
+
+            public string Name { get; }
+            public string Value
+            {
+                get => _value;
+                set
+                {
+                    if (_value == value)
+                        return;
+
+                    _value = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
+                }
+            }
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+
+            public ClockRow(string name, string value)
+            {
+                Name = name;
+                _value = value;
             }
         }
         // *********************************************************************************************************************************
