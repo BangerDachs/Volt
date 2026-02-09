@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using ScottPlot;
 using Volt.Utils; // hinzufügen
 
 
@@ -21,7 +22,8 @@ namespace Volt
 
         // variables
         //Graph_FanCurve
-
+        private FanCurve? _fanCurveWindow;
+        private bool _useFactoryCurve;
 
         // * * * * *
 
@@ -35,9 +37,9 @@ namespace Volt
             { panel_fanControl.IsEnabled = false; }
 
             // Diagramm An/Aus 
-            Grid_Background_FanCurve.Visibility = Visibility.Hidden;
-            if (Grid_Background_FanCurve.Visibility == Visibility.Visible)
-            { show_GPU_FanCurve(); }
+            //Grid_Background_FanCurve.Visibility = Visibility.Hidden;
+            //if (Grid_Background_FanCurve.Visibility == Visibility.Visible)
+            //{ show_GPU_FanCurve(); }
 
             Loaded += (s, e) => Initialize();
 
@@ -54,7 +56,7 @@ namespace Volt
                 cb_autoFanSpeed.IsChecked = true;
                 slider_fanSpeed.IsEnabled = false;
                 tb_fanSpeed.IsEnabled = false;
-                _nvoc.RestoreDefaultFanCurve();
+                ApplyFanCurveIfEnabled();
             }
             else
             {
@@ -66,24 +68,23 @@ namespace Volt
                 slider_fanSpeed.Value = int.Parse(fanSpeedText);
             }
 
-            // Starte den asynchronen Task
             _ = DoWorkAsync(this, _cts.Token);
-
         }
         // *********************************************************************************************************************************
         private async Task DoWorkAsync(MainWindow _mw, CancellationToken token)
         {
-            while (!token.IsCancellationRequested) // Schleife mit Abbruchtoken
+            while (!token.IsCancellationRequested)
             {
-                // Abruf von GPU-Daten und Anzeige in UI-Komponenten
-                string gpuTemp = _mw._nvoc.get_GPUCoreTemperature();
+                string gpuTempText = _mw._nvoc.get_GPUCoreTemperature();
+                double? gpuTempValue = double.TryParse(gpuTempText, out var tempValue) ? tempValue : null;
 
-                _mw.lb_gpu_temp_sensor.Content = ($"{gpuTemp:F1} °C");
+                _mw.lb_gpu_temp_sensor.Content = gpuTempValue.HasValue
+                    ? $"{tempValue:F1} °C"
+                    : $"{gpuTempText} °C";
 
                 string[] clocks = _mw._nvoc.get_ClockSpeed();
                 _mw.lb_gpu_frequency.Content = ($"{clocks[0]:F1} mhz");
                 _mw.lb_mem_frequency.Content = ($"{clocks[1]:F1} mhz");
-
 
                 string gpuVoltCurr = _mw._nvoc.get_Voltage();
                 _mw.lb_voltage_curr_voltage.Content = gpuVoltCurr;
@@ -91,18 +92,29 @@ namespace Volt
                 string gpuUsage = _nvoc.get_GPU_usage();
                 _mw.lb_load_curr_load.Content = gpuUsage;
 
-
-
-                //_mw._hwinfo.Get_Read_GPU_Information();
                 _hwinfo.Read_GPU_InformationAsync();
                 _mw.lb_power_curr_power.Content = _hwinfo.GPU_power;
-                //_mw.lb_load_curr_load.Content = _hwinfo.GPU_load;
                 _mw.lb_memory_curr_memory.Content = _hwinfo.GPU_mem_usage;
 
-                string fanSpeed = _mw._nvoc.get_FanSpeed();
-                _mw.tb_fanSpeed.Text = fanSpeed;
+                if (_mw._settings.AutoFan)
+                {
+                    if (_mw._useFactoryCurve)
+                    {
+                        _mw._nvoc.RestoreDefaultFanCurve();
+                        _mw.tb_fanSpeed.Text = _mw._nvoc.get_FanSpeed();
+                    }
+                    else if (gpuTempValue.HasValue)
+                    {
+                        int targetSpeed = GetFanSpeedForTemperature(gpuTempValue.Value, _mw._settings.FanCurve);
+                        _mw._nvoc.set_FanSpeed(targetSpeed);
+                        _mw.tb_fanSpeed.Text = targetSpeed.ToString();
+                    }
+                    // Synchronisieren des Sliders mit der aktuellen Lüftergeschwindigkeit wenn auf auto
+                    //_mw.slider_fanSpeed.Value = int.Parse(_mw.tb_fanSpeed.Text) ?? string.Empty; ; 
+                    _mw.slider_fanSpeed.Value = _mw._nvoc.get_FanSpeed() is string fanSpeedStr && int.TryParse(fanSpeedStr, out var fanSpeed) ? fanSpeed : _mw.slider_fanSpeed.Value;
+                }
 
-                await Task.Delay(UDefinition.cUpdateInterval); // Intervall 500ms
+                await Task.Delay(UDefinition.cUpdateInterval);
             }
         }
         // *********************************************************************************************************************************
@@ -117,6 +129,11 @@ namespace Volt
         // *********************************************************************************************************************************
         private void slider_fanSpeed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (cb_autoFanSpeed.IsChecked == true)
+                return;
+
+            _useFactoryCurve = false;
+
             int newSpeed = (int)slider_fanSpeed.Value;
             tb_fanSpeed.Text = newSpeed.ToString();
             _nvoc.set_FanSpeed(newSpeed);
@@ -126,9 +143,10 @@ namespace Volt
         {
             if (cb_autoFanSpeed.IsChecked == true)
             {
+                _settings.AutoFan = true;
                 slider_fanSpeed.IsEnabled = false;
                 tb_fanSpeed.IsEnabled = false;
-                _nvoc.RestoreDefaultFanCurve(); // auf Standard-Lüfterkurve zurücksetzen
+                ApplyFanCurveIfEnabled();
             }
         }
         // *********************************************************************************************************************************
@@ -136,9 +154,12 @@ namespace Volt
         {
             if (cb_autoFanSpeed.IsChecked == false)
             {
+                _settings.AutoFan = false;
                 slider_fanSpeed.IsEnabled = true;
                 tb_fanSpeed.IsEnabled = true;
-                _nvoc.set_FanSpeed((int)slider_fanSpeed.Value);
+
+                if (!_useFactoryCurve)
+                    _nvoc.set_FanSpeed((int)slider_fanSpeed.Value);
             }
         }
         // *********************************************************************************************************************************
@@ -184,11 +205,20 @@ namespace Volt
         // *********************************************************************************************************************************
         private void show_GPU_FanCurve()
         {
-            // Beispielwerte zum Testen:
-            double[] dataX = { 1, 2, 3, 4, 5, };
-            double[] dataY = { 1, 2, 4, 8, 16 };
-            Graph_FanCurve.Plot.Add.Scatter(dataX, dataY);
-            Graph_FanCurve.Refresh();
+            var initialPoints = ToCoordinates(_settings.FanCurve);
+            var dialog = new FanCurve(initialPoints)
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _settings.FanCurve = ToFanCurvePoints(dialog.Points);
+                SettingsStore.Save(_settings);
+                _useFactoryCurve = false;
+                ApplyFanCurveIfEnabled();
+            }
         }
         // *********************************************************************************************************************************
         private static bool IsAdministrator()
@@ -205,5 +235,104 @@ namespace Volt
             return _settings?.ToString() ?? string.Empty;
         }
 
+        private void btn_FanCurve_Click(object sender, RoutedEventArgs e)
+        {
+            // Graph mit Lüfterkurve öffnen zum anpassen
+            show_GPU_FanCurve();
+        }
+
+        private static List<Coordinates> ToCoordinates(List<SettingsStore.FanCurvePoint>? points)
+        {
+            if (points == null || points.Count == 0)
+                return new();
+
+            return points.Select(p => new Coordinates(p.Temperature, p.Speed)).ToList();
+        }
+
+        private static List<SettingsStore.FanCurvePoint> ToFanCurvePoints(IReadOnlyList<Coordinates> points)
+        {
+            return points.Select(p => new SettingsStore.FanCurvePoint
+            {
+                Temperature = p.X,
+                Speed = p.Y
+            }).ToList();
+        }
+
+        private static int GetFanSpeedForTemperature(double temperature, List<SettingsStore.FanCurvePoint> curve)
+        {
+            if (curve.Count == 0) return 0;
+
+            var ordered = curve.OrderBy(p => p.Temperature).ToList();
+
+            if (temperature <= ordered[0].Temperature)
+                return ClampSpeed(ordered[0].Speed);
+
+            if (temperature >= ordered[^1].Temperature)
+                return ClampSpeed(ordered[^1].Speed);
+
+            for (int i = 0; i < ordered.Count - 1; i++)
+            {
+                var a = ordered[i];
+                var b = ordered[i + 1];
+
+                if (temperature >= a.Temperature && temperature <= b.Temperature)
+                {
+                    double t = (temperature - a.Temperature) / (b.Temperature - a.Temperature);
+                    double speed = a.Speed + (b.Speed - a.Speed) * t;
+                    return ClampSpeed(speed);
+                }
+            }
+
+            return ClampSpeed(ordered[^1].Speed);
+        }
+
+        private static int ClampSpeed(double speed)
+        {
+            return (int)Math.Clamp(Math.Round(speed), 0, 100);
+        }
+
+        private void ApplyFanCurveIfEnabled()
+        {
+            if (!_settings.AutoFan || _settings.FanCurve.Count == 0)
+                return;
+
+            if (_useFactoryCurve)
+            {
+                _nvoc.RestoreDefaultFanCurve();
+                tb_fanSpeed.Text = _nvoc.get_FanSpeed();
+                return;
+            }
+
+            if (!double.TryParse(_nvoc.get_GPUCoreTemperature(), out var temp))
+                return;
+
+            int targetSpeed = GetFanSpeedForTemperature(temp, _settings.FanCurve);
+            _nvoc.set_FanSpeed(targetSpeed);
+            tb_fanSpeed.Text = targetSpeed.ToString();
+        }
+
+        private void btn_FanCurveReset_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.FanCurve = CreateDefaultFanCurve();
+            SettingsStore.Save(_settings);
+
+            _useFactoryCurve = true;
+            _nvoc.RestoreDefaultFanCurve();
+
+            if (_settings.AutoFan)
+                ApplyFanCurveIfEnabled();
+        }
+
+        private static List<SettingsStore.FanCurvePoint> CreateDefaultFanCurve()
+        {
+            return new List<SettingsStore.FanCurvePoint>
+            {
+                new() { Temperature = 0, Speed = 20 },
+                new() { Temperature = 25, Speed = 35 },
+                new() { Temperature = 50, Speed = 60 },
+                new() { Temperature = 75, Speed = 80 },
+                new() { Temperature = 100, Speed = 100 }
+            };
+        }
     }
 }
