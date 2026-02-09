@@ -22,14 +22,22 @@ namespace Volt
         private readonly CancellationTokenSource _cts = new();
         private SettingsStore.Settings _settings = new(); // neu
 
-        private readonly ObservableCollection<ClockRow> _clockRows = new();
+        // data
+        private readonly ObservableCollection<ClockRow> _clockRows = new(); // ObservableCollection für die Anzeige der GPU-Informationen in der DataGrid
         private ClockRow _rowGpuTemp = null!;
+        private ClockRow _rowGPuHotSpot = null!;
         private ClockRow _rowCoreClock = null!;
         private ClockRow _rowMemClock = null!;
         private ClockRow _rowVoltage = null!;
         private ClockRow _rowPower = null!;
         private ClockRow _rowLoad = null!;
         private ClockRow _rowMemory = null!;
+
+        // Array zum Speichern der Werte für Min, Max, AVG, Watt, Voltage werte
+        private readonly double[] _minValues = new double[8];
+        private readonly double[] _maxValues = new double[8];
+        private readonly double[] _avgValues = new double[8];
+        private int _sampleCount;
 
         // variables
         //Graph_FanCurve
@@ -60,6 +68,11 @@ namespace Volt
         {
             _settings = SettingsStore.Load(); // laden
 
+            Array.Fill(_minValues, double.MaxValue);
+            Array.Fill(_maxValues, double.MinValue);
+            Array.Clear(_avgValues);
+            _sampleCount = 0;
+
             lb_driverV.Content = _nvoc.get_DriverVersion();
             InitializeClockRows();
 
@@ -85,16 +98,21 @@ namespace Volt
 
         private void InitializeClockRows()
         {
-            _rowGpuTemp = new ClockRow("GPU Temperature", "--");
-            _rowCoreClock = new ClockRow("Core Clock", "--");
-            _rowMemClock = new ClockRow("Memory Clock", "--");
-            _rowVoltage = new ClockRow("Curr. Voltage", "--");
-            _rowPower = new ClockRow("Curr. Power", "--");
-            _rowLoad = new ClockRow("Curr. Load", "--");
-            _rowMemory = new ClockRow("Curr. Memory", "--");
+            _rowGpuTemp = new ClockRow("GPU Temperature", "--", "--", "--", "--");
+            _rowGPuHotSpot = new ClockRow("Hotspot Temperature", "--", "--", "--", "--");
+            _rowCoreClock = new ClockRow("Core Clock", "--", "--", "--", "--");
+            _rowMemClock = new ClockRow("Memory Clock", "--", "--", "--", "--");
+            _rowVoltage = new ClockRow("Curr. Voltage", "--", "--", "--", "--");
+            _rowPower = new ClockRow("Curr. Power", "--", "--", "--", "--");
+            _rowLoad = new ClockRow("Curr. Load", "--", "--", "--", "--");
+            _rowMemory = new ClockRow("Curr. Memory", "--", "--", "--", "--");
 
             _clockRows.Clear();
             _clockRows.Add(_rowGpuTemp);
+            if (_rowGPuHotSpot.Value != "--") 
+            {// Nur hinzufügen, wenn tatsächlich ein Wert für Hotspot-Temperatur vorhanden ist
+                _clockRows.Add(_rowGPuHotSpot); 
+            }
             _clockRows.Add(_rowCoreClock);
             _clockRows.Add(_rowMemClock);
             _clockRows.Add(_rowVoltage);
@@ -115,19 +133,27 @@ namespace Volt
                 _mw._rowGpuTemp.Value = gpuTempValue.HasValue
                     ? $"{tempValue:F1} °C"
                     : $"{gpuTempText} °C";
+                //_mw._rowGPuHotSpot.Value = $"{_mw._nvoc.get_GPUHotspotTemperature()} °C";
 
                 string[] clocks = _mw._nvoc.get_ClockSpeed();
-                _mw._rowCoreClock.Value = $"{clocks[0]:F1} mhz";
-                _mw._rowMemClock.Value = $"{clocks[1]:F1} mhz";
+                double coreClockValue = clocks.Length > 0 && double.TryParse(clocks[0], out var coreClock) ? coreClock : 0;
+                double memClockValue = clocks.Length > 1 && double.TryParse(clocks[1], out var memClock) ? memClock : 0;
 
-                string gpuVoltCurr = _mw._nvoc.get_Voltage();
-                _mw._rowVoltage.Value = gpuVoltCurr;
+                _mw._rowCoreClock.Value = clocks.Length > 0 ? $"{coreClockValue:F1} mhz" : "N/A";
+                _mw._rowMemClock.Value = clocks.Length > 1 ? $"{memClockValue:F1} mhz" : "N/A";
 
-                string gpuUsage = _nvoc.get_GPU_usage();
-                _mw._rowLoad.Value = gpuUsage;
+                string gpuVoltCurrStr = _mw._nvoc.get_Voltage();
+                double gpuVoltCurr = double.TryParse(gpuVoltCurrStr.Replace(" V", ""), out var volt) ? volt : 0;
+                _mw._rowVoltage.Value = gpuVoltCurrStr;
 
-                _hwinfo.Read_GPU_InformationAsync();
-                _mw._rowPower.Value = _hwinfo.GPU_power;
+                string gpuUsageStr = _nvoc.get_GPU_usage();
+                double gpuUsage = double.TryParse(gpuUsageStr.Replace(" %", ""), out var usage) ? usage : 0;
+                _mw._rowLoad.Value = gpuUsageStr;
+
+                await _hwinfo.Read_GPU_InformationAsync();
+                var powerText = _hwinfo.GPU_power ?? "N/A";
+                double rowPower = double.TryParse(powerText.Replace(" W", ""), out var power) ? power : 0;
+                _mw._rowPower.Value = powerText;
                 _mw._rowMemory.Value = _hwinfo.GPU_mem_usage;
 
                 if (_mw._settings.AutoFan)
@@ -143,9 +169,20 @@ namespace Volt
                         _mw._nvoc.set_FanSpeed(targetSpeed);
                         _mw.tb_fanSpeed.Text = targetSpeed.ToString();
                     }
-                    // Synchronisieren des Sliders mit der aktuellen Lüftergeschwindigkeit wenn auf auto
-                    //_mw.slider_fanSpeed.Value = int.Parse(_mw.tb_fanSpeed.Text) ?? string.Empty; ; 
                     _mw.slider_fanSpeed.Value = _mw._nvoc.get_FanSpeed() is string fanSpeedStr && int.TryParse(fanSpeedStr, out var fanSpeed) ? fanSpeed : _mw.slider_fanSpeed.Value;
+                }
+
+                // Fix: Prüfe, ob gpuTempValue.HasValue, bevor saveValues aufgerufen wird
+                if (gpuTempValue.HasValue)
+                {
+                    saveValues(
+                        gpuTempValue.Value,
+                        coreClockValue,
+                        memClockValue,
+                        gpuVoltCurr,
+                        gpuUsage,
+                        rowPower
+                    );
                 }
 
                 await Task.Delay(UDefinition.cUpdateInterval);
@@ -155,6 +192,10 @@ namespace Volt
         private sealed class ClockRow : INotifyPropertyChanged
         {
             private string _value;
+            private string _avg;
+            private string _min;
+            private string _max;
+            
 
             public string Name { get; }
             public string Value
@@ -169,13 +210,49 @@ namespace Volt
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
                 }
             }
+            public string Avg
+            {
+                get => _avg;
+                set
+                {
+                    if (_avg == value)
+                        return;
+                    _avg = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Avg)));
+                }
+            }
+            public string Min
+            {
+                get => _min;
+                set
+                {
+                    if (_min == value)
+                        return;
+                    _min = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Min)));
+                }
+            }
+            public string Max
+            {
+                get => _max;
+                set
+                {
+                    if (_max == value)
+                        return;
+                    _max = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Max)));
+                }
+            }
 
             public event PropertyChangedEventHandler? PropertyChanged;
 
-            public ClockRow(string name, string value)
+            public ClockRow(string name, string value, string avg, string min, string max)
             {
                 Name = name;
                 _value = value;
+                _avg = avg;
+                _min = min;
+                _max = max;
             }
         }
         // *********************************************************************************************************************************
@@ -397,6 +474,49 @@ namespace Volt
                 new() { Temperature = 75, Speed = 80 },
                 new() { Temperature = 100, Speed = 100 }
             };
+        }
+
+        private void saveValues(double gpuTempValue, double gpuClockValue, double memoryClockValue, double gpuVoltCurr, double gpuUsage, double rowPower)
+        {
+            _sampleCount++;
+
+            UpdateStats(0, gpuTempValue);
+            UpdateStats(1, gpuClockValue);
+            UpdateStats(2, memoryClockValue);
+            UpdateStats(3, gpuVoltCurr);
+            UpdateStats(4, gpuUsage);
+            UpdateStats(5, rowPower);
+
+            _rowGpuTemp.Min = $"{_minValues[0]:F1}";
+            _rowGpuTemp.Max = $"{_maxValues[0]:F1}";
+            _rowGpuTemp.Avg = $"{_avgValues[0]:F1}";
+
+            _rowCoreClock.Min = $"{_minValues[1]:F1}";
+            _rowCoreClock.Max = $"{_maxValues[1]:F1}";
+            _rowCoreClock.Avg = $"{_avgValues[1]:F1}";
+
+            _rowMemClock.Min = $"{_minValues[2]:F1}";
+            _rowMemClock.Max = $"{_maxValues[2]:F1}";
+            _rowMemClock.Avg = $"{_avgValues[2]:F1}";
+
+            _rowVoltage.Min = $"{_minValues[3]:F3}";
+            _rowVoltage.Max = $"{_maxValues[3]:F3}";
+            _rowVoltage.Avg = $"{_avgValues[3]:F3}";
+
+            _rowLoad.Min = $"{_minValues[4]:F0}";
+            _rowLoad.Max = $"{_maxValues[4]:F0}";
+            _rowLoad.Avg = $"{_avgValues[4]:F0}";
+
+            _rowPower.Min = $"{_minValues[5]:F1}";
+            _rowPower.Max = $"{_maxValues[5]:F1}";
+            _rowPower.Avg = $"{_avgValues[5]:F1}";
+        }
+
+        private void UpdateStats(int index, double value)
+        {
+            _minValues[index] = Math.Min(_minValues[index], value);
+            _maxValues[index] = Math.Max(_maxValues[index], value);
+            _avgValues[index] = ((_avgValues[index] * (_sampleCount - 1)) + value) / _sampleCount;
         }
     }
 }

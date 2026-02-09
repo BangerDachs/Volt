@@ -9,6 +9,7 @@ namespace Volt
         public string GPU_power;
         public string GPU_load;
         public string GPU_mem_usage;
+        public string GPU_Temp;
 
 
 
@@ -42,6 +43,10 @@ namespace Volt
                             {
                                 GPU_mem_usage = $"{sensor.Value:F0} MB";
                             }
+                            else if (sensor.SensorType == SensorType.SmallData)
+                            {
+                                GPU_Temp = $"{sensor.Value:F0} °C";
+                            }
                         }
                     }
                 }
@@ -67,6 +72,11 @@ namespace Volt
                         
                         if (sensor.SensorType == SensorType.SmallData)
                         { GPU_mem_usage = ($"{sensor.Value:F0} MB");
+                            break;
+                        }
+                        if (sensor.SensorType == SensorType.Temperature)
+                        {
+                            GPU_Temp = ($"{sensor.Value:F2} °C");
                             break;
                         }
                     }

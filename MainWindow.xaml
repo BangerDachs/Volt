@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:Volt"
         xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         mc:Ignorable="d"
-        Title="MainWindow" Height="201" Width="290"  WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True" ResizeMode="NoResize">
+        Title="MainWindow" Height="240" Width="640"  WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True" ResizeMode="NoResize">
     <Window.Background>
         <SolidColorBrush Opacity="0.5" Color="Gray"/>
     </Window.Background>
@@ -20,7 +20,7 @@
         </StackPanel>
 
         <!--Manuelle Lüftersteuerung Slider-->
-        <Grid x:Name="panel_fanControl" Height="89" Margin="189,31,0,0" VerticalAlignment="Top" Background="#FF9A9A9A" HorizontalAlignment="Left" Width="92">
+        <Grid x:Name="panel_fanControl" Height="89" Margin="543,26,0,0" VerticalAlignment="Top" Background="#FF9A9A9A" HorizontalAlignment="Left" Width="92">
             <Slider x:Name="slider_fanSpeed" Minimum="0" Maximum="100" HorizontalAlignment="Left" Margin="-16,27,0,0" VerticalAlignment="Top" Width="58" RenderTransformOrigin="0.5,0.5" ValueChanged="slider_fanSpeed_ValueChanged">
                 <Slider.RenderTransform>
                     <TransformGroup>
@@ -42,66 +42,27 @@
         </Grid>
 
         <!--Core und Memory Clock Labels-->
-        <Grid x:Name="grid_clocks" Background="White" Width="174" Margin="10,27,0,5" HorizontalAlignment="Left">
-            <DataGrid x:Name="dataGrid_clocks" Margin="2,2,2,2" HeadersVisibility="None" GridLinesVisibility="None" IsReadOnly="True" AutoGenerateColumns="False">
+        <Grid x:Name="grid_clocks"
+              Background="White"
+              Width="520"
+              Margin="10,31,0,24"
+              HorizontalAlignment="Left">
+            <DataGrid x:Name="dataGrid_clocks"
+                      Margin="2"
+                      HeadersVisibility="All"
+                      ColumnHeaderHeight="20" 
+                      GridLinesVisibility="All"
+                      IsReadOnly="True"
+                      AutoGenerateColumns="False"
+                      VerticalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Binding="{Binding Name}" Width="*" />
-                    <DataGridTextColumn Binding="{Binding Value}" Width="Auto" />
+                    <DataGridTextColumn Header="Information" Binding="{Binding Name}" Width="Auto" />
+                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="Auto" />
+                    <DataGridTextColumn Header="Min" Binding="{Binding Min}" Width="Auto" />
+                    <DataGridTextColumn Header="Max" Binding="{Binding Max}" Width="Auto" />
+                    <DataGridTextColumn Header="Avg" Binding="{Binding Avg}" Width="Auto" />
                 </DataGrid.Columns>
             </DataGrid>
-            <!--   --><!--GPU Temperatur--><!--
-            <Grid x:Name="gpu_core_temp" Background="LightGoldenrodYellow" VerticalAlignment="Top" Height="21" Margin="2,2,2,1">
-                <Label x:Name="lb_gpu_temp" Content="GPU Temperature:" Padding="0,0,0,0" Height="15" Margin="5,2,26,2" HorizontalAlignment="Left" HorizontalContentAlignment="Left" />
-                <Label x:Name="lb_gpu_temp_sensor" Content="155°C"  Margin="98,3,5,3" FontWeight="Bold" Padding="0,0,0,0" FontSize="11" Height="14" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-            <Grid x:Name="grid_coreClk" Background="LightCyan" Height="20" Margin="2,26,2,1" VerticalAlignment="Top">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="54*"/>
-                    <ColumnDefinition Width="31*"/>
-                </Grid.ColumnDefinitions>
-                <Label x:Name="lb_gpu_coreclk" Content="Core Clock:" HorizontalAlignment="Left" VerticalAlignment="Top" Padding="0,0,0,0" Height="15" Width="80" Margin="5,0,0,0"/>
-                <Label x:Name="lb_gpu_frequency" Content="core mhz" HorizontalAlignment="Right" Margin="93,0,5,0" VerticalAlignment="Center" Padding="5,0,5,0" Height="15" VerticalContentAlignment="Center" Width="70" HorizontalContentAlignment="Right" Grid.ColumnSpan="2"/>
-            </Grid>
-            <Grid x:Name="grid_memClk" Background="LightPink" Margin="2,50,2,0" Height="20" VerticalAlignment="Top">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="113*"/>
-                    <ColumnDefinition Width="57*"/>
-                </Grid.ColumnDefinitions>
-                <Label x:Name="lb_gpu_memclk" Content="Memory Clock:" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="80" Padding="0,0,0,0" Height="15"/>
-                <Label x:Name="lb_mem_frequency" Content="mem mhz" HorizontalAlignment="Right" Margin="93,0,5,0" VerticalAlignment="Center" Padding="5,0,5,0" Width="70" Height="15" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Grid.ColumnSpan="2"/>
-            </Grid>
-            <Grid x:Name="grid_power_curr"  Margin="2,74,2,0" Height="20" VerticalAlignment="Top" Background="#FFEAEC09">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="113*"/>
-                    <ColumnDefinition Width="57*"/>
-                </Grid.ColumnDefinitions>
-                <Label x:Name="lb_voltage_curr" Content="Curr. Voltage:" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="80" Padding="0,0,0,0" Height="15"/>
-                <Label x:Name="lb_voltage_curr_voltage" Content="V" HorizontalAlignment="Right" Margin="93,0,5,0" VerticalAlignment="Center" Padding="5,0,5,0" Width="70" Height="15" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Grid.ColumnSpan="2"/>
-            </Grid>
-            <Grid x:Name="grid_power_curr_Kopieren"  Margin="2,99,2,0" Height="20" VerticalAlignment="Top" Background="#FFEAEC09">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="113*"/>
-                    <ColumnDefinition Width="57*"/>
-                </Grid.ColumnDefinitions>
-                <Label x:Name="lb_power_curr" Content="Curr. Power:" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="80" Padding="0,0,0,0" Height="15"/>
-                <Label x:Name="lb_power_curr_power" Content="W" HorizontalAlignment="Right" Margin="93,0,5,0" VerticalAlignment="Center" Padding="5,0,5,0" Width="70" Height="15" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Grid.ColumnSpan="2"/>
-            </Grid>
-            <Grid x:Name="grid_load_curr"  Margin="2,124,2,0" Height="20" VerticalAlignment="Top" Background="#FFEAEC09">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="113*"/>
-                    <ColumnDefinition Width="57*"/>
-                </Grid.ColumnDefinitions>
-                <Label x:Name="lb_load_curr" Content="Curr. load:" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="80" Padding="0,0,0,0" Height="15"/>
-                <Label x:Name="lb_load_curr_load" Content="W" HorizontalAlignment="Right" Margin="93,0,5,0" VerticalAlignment="Center" Padding="5,0,5,0" Width="70" Height="15" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Grid.ColumnSpan="2"/>
-            </Grid>
-            <Grid x:Name="grid_memory_curr"  Margin="2,147,2,0" Height="20" VerticalAlignment="Top" Background="#FF09ECB3">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="113*"/>
-                    <ColumnDefinition Width="57*"/>
-                </Grid.ColumnDefinitions>
-                <Label x:Name="lb_memory_curr" Content="Curr. Memory:" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="80" Padding="0,0,0,0" Height="15"/>
-                <Label x:Name="lb_memory_curr_memory" Content="MB" HorizontalAlignment="Right" Margin="93,0,5,0" VerticalAlignment="Center" Padding="5,0,5,0" Width="70" Height="15" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Grid.ColumnSpan="2"/>
-            </Grid>-->
         </Grid>
 
 
@@ -126,7 +87,7 @@
             </Button.Background>
         </Button>
 
-        
+
 
 
     </Grid>

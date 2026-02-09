@@ -7,6 +7,7 @@ using NvAPIWrapper.Native.GPU.Structures;
 using NvAPIWrapper.Native.Exceptions;    // für NvAPIException
 using System.Linq;
 using NvAPIWrapper.Native.General;
+using LibreHardwareMonitor.Hardware;
 
 namespace Volt
 {
@@ -128,13 +129,27 @@ namespace Volt
                 if (temperature != null)
                 {
                     foreach (var sensor in temperature)
-                    {
+                    {                       
                         return sensor.CurrentTemperature.ToString();
                     }
                 }
                 return "N/A1";
             }
             return "N/A2";
+        }
+        // *********************************************************************************************
+        // Hotspot Temperatur
+        public string get_GPUHotspotTemperature()
+        { return GPUHotspotTemperature(); }
+        private string GPUHotspotTemperature()
+        {
+            var hotspotSensor = gpu?.ThermalInformation?.ThermalSensors
+                .FirstOrDefault(s => s.SensorId == (int)SensorType.Temperature);
+
+            if (hotspotSensor != null)
+                return hotspotSensor.CurrentTemperature.ToString();
+
+            return "N/A";
         }
         // *********************************************************************************************************************************
         // Clock Speed
