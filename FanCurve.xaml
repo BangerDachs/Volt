@@ -65,7 +65,7 @@
 
         <!-- Plot -->
         <Border Grid.Row="2" Background="#2A2D2F" BorderBrush="#3B4247" BorderThickness="1" Padding="8" >
-            <ScottPlot:WpfPlot x:Name="Graph_FanCurve" MouseDoubleClick="Graph_FanCurve_MouseDoubleClick" />
+            <ScottPlot:WpfPlot x:Name="Graph_FanCurve" MouseDoubleClick="Graph_FanCurve_MouseDoubleClick" KeyDown="Graph_FanCurve_KeyDown" />
         </Border>
 
         <!-- Footer -->

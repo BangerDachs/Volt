@@ -76,6 +76,8 @@ namespace Volt
             Graph_FanCurve.Plot.Axes.SetLimits(0, 100, 0, 100);
             Graph_FanCurve.Plot.Axes.Bottom.Label.Text = "Temperatur [°C]";
             Graph_FanCurve.Plot.Axes.Left.Label.Text = "Lüfter [%]";
+            // _point 0 linksbündig, _point n rechtsbündig fixieren
+            
 
             Graph_FanCurve.Refresh();
         }
@@ -88,6 +90,7 @@ namespace Volt
 
             Coordinates mouse = GetMouseCoordinates(e);
             _dragIndex = FindNearestPoint(mouse, 5);
+
             _isDragging = _dragIndex >= 0;
 
             if (_isDragging)
@@ -158,9 +161,15 @@ namespace Volt
 
         private Coordinates ClampToBounds(Coordinates mouse, int index)
         {
+            if (index <= 0)
+                return new Coordinates(0, Math.Clamp(mouse.Y, 0, 100));
+
+            if (index >= _points.Count - 1)
+                return new Coordinates(100, Math.Clamp(mouse.Y, 0, 100));
+
             // X darf nicht an Nachbarpunkten vorbeiziehen
-            double minX = index > 0 ? _points[index - 1].X + 0.1 : 0;
-            double maxX = index < _points.Count - 1 ? _points[index + 1].X - 0.1 : 100;
+            double minX = _points[index - 1].X + 0.1;
+            double maxX = _points[index + 1].X - 0.1;
 
             double x = Math.Clamp(mouse.X, minX, maxX);
             double y = Math.Clamp(mouse.Y, 0, 100);
@@ -193,8 +202,11 @@ namespace Volt
             if (insertIndex < 0)
                 insertIndex = _points.Count;
 
-            double minX = insertIndex > 0 ? _points[insertIndex - 1].X + 0.1 : 0;
-            double maxX = insertIndex < _points.Count ? _points[insertIndex].X - 0.1 : 100;
+            if (insertIndex <= 0 || insertIndex >= _points.Count)
+                return; // Nur zwischen erstem und letztem Punkt einfügen
+
+            double minX = _points[insertIndex - 1].X + 0.1;
+            double maxX = _points[insertIndex].X - 0.1;
 
             if (minX > maxX)
                 return; // Kein Platz zwischen den Punkten
@@ -207,6 +219,17 @@ namespace Volt
 
             _points.Insert(insertIndex, new Coordinates(x, y));
             RenderPlot();
+        }
+
+        private void Graph_FanCurve_KeyDown(object sender, KeyEventArgs e)
+        {
+            // wenn ein Punkt ausgewählt ist, kann er mit der Entf-Taste gelöscht werden
+            if (e.Key == Key.Delete && _dragIndex > 0 && _dragIndex < _points.Count - 1 && _points.Count > 2)
+            {
+                _points.RemoveAt(_dragIndex);
+                _dragIndex = -1;
+                RenderPlot();
+            }
         }
     }
 }
