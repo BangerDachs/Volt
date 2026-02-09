@@ -8,10 +8,11 @@ using ScottPlot;
 namespace Volt
 {
     /// <summary>
-    /// Interaktionslogik für FanCurve.xaml
+    /// Interaktionslogik für `FanCurve.xaml`.
     /// </summary>
     public partial class FanCurve : Window
     {
+        // Standard-Punkte der Lüfterkurve (Temperatur -> Lüftergeschwindigkeit)
         private readonly List<Coordinates> _points =
         [
             new(0, 20),
@@ -21,21 +22,27 @@ namespace Volt
             new(100, 100)
         ];
 
+        // Drag-Status für das Verschieben von Punkten
         private bool _isDragging;
         private int _dragIndex = -1;
 
+        // Gibt die aktuelle Kurve für den Aufrufer zurück
         public IReadOnlyList<Coordinates> Points => _points;
 
         public FanCurve(IEnumerable<Coordinates>? initialPoints = null)
         {
             InitializeComponent();
 
+            Graph_FanCurve.UserInputProcessor.Disable();
+
+            // Optional: übergebene Kurvenpunkte übernehmen
             if (initialPoints != null)
             {
                 _points.Clear();
                 _points.AddRange(initialPoints.OrderBy(p => p.X));
-            }
+            }   
 
+            // Event-Handler binden
             Loaded += FanCurve_Loaded;
             Graph_FanCurve.MouseDown += Graph_FanCurve_MouseDown;
             Graph_FanCurve.MouseMove += Graph_FanCurve_MouseMove;
@@ -45,11 +52,14 @@ namespace Volt
 
         private void FanCurve_Loaded(object sender, RoutedEventArgs e)
         {
+            // Initiales Rendern
+            
             RenderPlot();
         }
 
         private void RenderPlot()
         {
+            // Plot leeren und neu zeichnen
             Graph_FanCurve.Plot.Clear();
 
             double[] xs = _points.Select(p => p.X).ToArray();
@@ -60,6 +70,7 @@ namespace Volt
             scatter.MarkerShape = MarkerShape.FilledCircle;
             scatter.LineWidth = 2;
 
+            // Achsenformatierung
             Graph_FanCurve.Plot.Axes.SetLimits(0, 100, 0, 100);
             Graph_FanCurve.Plot.Axes.Bottom.Label.Text = "Temperatur [°C]";
             Graph_FanCurve.Plot.Axes.Left.Label.Text = "Lüfter [%]";
@@ -69,6 +80,7 @@ namespace Volt
 
         private void Graph_FanCurve_MouseDown(object? sender, MouseButtonEventArgs e)
         {
+            // Drag nur bei gedrückter linker Maustaste starten
             if (e.LeftButton != MouseButtonState.Pressed)
                 return;
 
@@ -82,6 +94,7 @@ namespace Volt
 
         private void Graph_FanCurve_MouseMove(object? sender, MouseEventArgs e)
         {
+            // Nur ziehen, wenn ein Punkt ausgewählt ist
             if (!_isDragging || _dragIndex < 0)
                 return;
 
@@ -93,6 +106,7 @@ namespace Volt
 
         private Coordinates GetMouseCoordinates(MouseEventArgs e)
         {
+            // Mausposition in Plot-Koordinaten umrechnen
             var p = e.GetPosition(Graph_FanCurve);
             var pixel = new Pixel(p.X, p.Y);
             return Graph_FanCurve.Plot.GetCoordinates(pixel);
@@ -100,11 +114,13 @@ namespace Volt
 
         private void Graph_FanCurve_MouseUp(object? sender, MouseButtonEventArgs e)
         {
+            // Drag beenden
             StopDragging();
         }
 
         private void Graph_FanCurve_MouseLeave(object? sender, MouseEventArgs e)
         {
+            // Drag beenden, wenn Maus den Plot verlässt
             StopDragging();
         }
 
@@ -118,6 +134,7 @@ namespace Volt
 
         private int FindNearestPoint(Coordinates mouse, double maxDistance)
         {
+            // Nächstgelegenen Punkt zur Maus finden
             int bestIndex = -1;
             double bestDistance = double.MaxValue;
 
@@ -139,6 +156,7 @@ namespace Volt
 
         private Coordinates ClampToBounds(Coordinates mouse, int index)
         {
+            // X darf nicht an Nachbarpunkten vorbeiziehen
             double minX = index > 0 ? _points[index - 1].X + 0.1 : 0;
             double maxX = index < _points.Count - 1 ? _points[index + 1].X - 0.1 : 100;
 
@@ -150,12 +168,14 @@ namespace Volt
 
         private void Ok_Click(object sender, RoutedEventArgs e)
         {
+            // Änderungen übernehmen
             DialogResult = true;
             Close();
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
+            // Änderungen verwerfen
             DialogResult = false;
             Close();
         }

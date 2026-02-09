@@ -146,6 +146,7 @@ namespace Volt
                 _settings.AutoFan = true;
                 slider_fanSpeed.IsEnabled = false;
                 tb_fanSpeed.IsEnabled = false;
+                cb_autoFanSpeed.IsChecked = true;
                 ApplyFanCurveIfEnabled();
             }
         }
@@ -157,6 +158,7 @@ namespace Volt
                 _settings.AutoFan = false;
                 slider_fanSpeed.IsEnabled = true;
                 tb_fanSpeed.IsEnabled = true;
+                
 
                 if (!_useFactoryCurve)
                     _nvoc.set_FanSpeed((int)slider_fanSpeed.Value);
@@ -292,7 +294,7 @@ namespace Volt
         }
 
         private void ApplyFanCurveIfEnabled()
-        {
+        { // Nur anwenden wenn Auto-Fan aktiviert ist und eine Kurve definiert ist
             if (!_settings.AutoFan || _settings.FanCurve.Count == 0)
                 return;
 
@@ -313,11 +315,12 @@ namespace Volt
 
         private void btn_FanCurveReset_Click(object sender, RoutedEventArgs e)
         {
-            _settings.FanCurve = CreateDefaultFanCurve();
-            SettingsStore.Save(_settings);
-
+            _settings.FanCurve = CreateDefaultFanCurve(); // Standardkurve erstellen
+            SettingsStore.Save(_settings); // Änderungen speichern
+            cb_autoFanSpeed.IsChecked = true;
+            cb_autoFanSpeed_Checked(sender, e); // Auto-Fan aktivieren
             _useFactoryCurve = true;
-            _nvoc.RestoreDefaultFanCurve();
+            _nvoc.RestoreDefaultFanCurve(); // Standard-Lüfterkurve wiederherstellen
 
             if (_settings.AutoFan)
                 ApplyFanCurveIfEnabled();
