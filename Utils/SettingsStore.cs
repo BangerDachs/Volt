@@ -13,10 +13,25 @@ public static class SettingsStore
         WriteIndented = true
     };
 
+    public sealed class FanCurvePoint
+    {
+        public double Temperature { get; set; }
+        public double Speed { get; set; }
+    }
+
     public class Settings
     {
         public int FanSpeed { get; set; } = 40;
         public bool AutoFan { get; set; } = false;
+
+        public List<FanCurvePoint> FanCurve { get; set; } =
+        [
+            new FanCurvePoint { Temperature = 0, Speed = 20 },
+            new FanCurvePoint { Temperature = 25, Speed = 35 },
+            new FanCurvePoint { Temperature = 50, Speed = 60 },
+            new FanCurvePoint { Temperature = 75, Speed = 80 },
+            new FanCurvePoint { Temperature = 100, Speed = 100 }
+        ];
     }
 
     public static Settings Load()
