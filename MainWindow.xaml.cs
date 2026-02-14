@@ -18,6 +18,7 @@ namespace Volt
         // imports
         private readonly UDefinition _udef = new();
         private readonly NVOC _nvoc = new();
+        private readonly AMD_GPU _AMD = new AMD_GPU();
         private readonly LibreHW _hwinfo = new LibreHW();
         private readonly CancellationTokenSource _cts = new();
         private SettingsStore.Settings _settings = new(); // neu
@@ -76,21 +77,35 @@ namespace Volt
             lb_driverV.Content = _nvoc.get_DriverVersion();
             InitializeClockRows();
 
-            if (_settings.AutoFan)
+            if (!_nvoc.IsNvidiaAvailable)
             {
-                cb_autoFanSpeed.IsChecked = true;
+                panel_fanControl.IsEnabled = false;
+                tb_fanSpeed.Text = "N/A";
                 slider_fanSpeed.IsEnabled = false;
-                tb_fanSpeed.IsEnabled = false;
-                ApplyFanCurveIfEnabled();
+                slider_fanSpeed.Value = 0;
             }
-            else
-            {
-                var fanSpeedText = _settings.FanSpeed > 0
-                    ? _settings.FanSpeed.ToString()
-                    : _nvoc.get_FanSpeed();
 
-                tb_fanSpeed.Text = fanSpeedText;
-                slider_fanSpeed.Value = int.Parse(fanSpeedText);
+            if (_nvoc.IsNvidiaAvailable)
+            {
+                if (_settings.AutoFan)
+                {
+                    cb_autoFanSpeed.IsChecked = true;
+                    slider_fanSpeed.IsEnabled = false;
+                    tb_fanSpeed.IsEnabled = false;
+                    ApplyFanCurveIfEnabled();
+                }
+                else
+                {
+                    var fanSpeedText = _settings.FanSpeed > 0
+                        ? _settings.FanSpeed.ToString()
+                        : _nvoc.get_FanSpeed();
+
+                    tb_fanSpeed.Text = fanSpeedText;
+                    if (int.TryParse(fanSpeedText, out var fanSpeed))
+                    {
+                        slider_fanSpeed.Value = fanSpeed;
+                    }
+                }
             }
 
             _ = DoWorkAsync(this, _cts.Token);
@@ -127,36 +142,40 @@ namespace Volt
         {
             while (!token.IsCancellationRequested)
             {
-                string gpuTempText = _mw._nvoc.get_GPUCoreTemperature();
-                double? gpuTempValue = double.TryParse(gpuTempText, out var tempValue) ? tempValue : null;
-
+                await _hwinfo.Read_GPU_InformationAsync();
+                // Temperatur
+                string gpuTempText = _hwinfo.GPU_coreTemp ?? "N/A";
+                string gpuTempNumeric = gpuTempText.Replace(" °C", "");
+                double? gpuTempValue = double.TryParse(gpuTempNumeric, out var tempValue) ? tempValue : null;
                 _mw._rowGpuTemp.Value = gpuTempValue.HasValue
                     ? $"{tempValue:F1} °C"
                     : $"{gpuTempText} °C";
-                //_mw._rowGPuHotSpot.Value = $"{_mw._nvoc.get_GPUHotspotTemperature()} °C";
 
-                string[] clocks = _mw._nvoc.get_ClockSpeed();
-                double coreClockValue = clocks.Length > 0 && double.TryParse(clocks[0], out var coreClock) ? coreClock : 0;
-                double memClockValue = clocks.Length > 1 && double.TryParse(clocks[1], out var memClock) ? memClock : 0;
-
-                _mw._rowCoreClock.Value = clocks.Length > 0 ? $"{coreClockValue:F1} mhz" : "N/A";
-                _mw._rowMemClock.Value = clocks.Length > 1 ? $"{memClockValue:F1} mhz" : "N/A";
-
-                string gpuVoltCurrStr = _mw._nvoc.get_Voltage();
+                // Voltage
+                string gpuVoltCurrStr = _hwinfo.GPU_voltage ?? "N/A";
                 double gpuVoltCurr = double.TryParse(gpuVoltCurrStr.Replace(" V", ""), out var volt) ? volt : 0;
                 _mw._rowVoltage.Value = gpuVoltCurrStr;
 
-                string gpuUsageStr = _nvoc.get_GPU_usage();
+                // Load
+                string gpuUsageStr = _hwinfo.GPU_load ?? _nvoc.get_GPU_usage();
                 double gpuUsage = double.TryParse(gpuUsageStr.Replace(" %", ""), out var usage) ? usage : 0;
                 _mw._rowLoad.Value = gpuUsageStr;
+                 
+                // Clocks
+                string CoreClock = _hwinfo.GPU_freq ?? "N/A";
+                _mw._rowCoreClock.Value = CoreClock;
+                
+                string MemClock = _hwinfo.GPU_memclock ?? "N/A";
+                _mw._rowMemClock.Value = MemClock;
 
-                await _hwinfo.Read_GPU_InformationAsync();
+                // Power
                 var powerText = _hwinfo.GPU_power ?? "N/A";
                 double rowPower = double.TryParse(powerText.Replace(" W", ""), out var power) ? power : 0;
                 _mw._rowPower.Value = powerText;
                 _mw._rowMemory.Value = _hwinfo.GPU_mem_usage;
 
-                if (_mw._settings.AutoFan)
+                // Fan Control
+                if (_mw._settings.AutoFan && _mw._nvoc.IsNvidiaAvailable)
                 {
                     if (_mw._useFactoryCurve)
                     {
@@ -175,6 +194,9 @@ namespace Volt
                 // Fix: Prüfe, ob gpuTempValue.HasValue, bevor saveValues aufgerufen wird
                 if (gpuTempValue.HasValue)
                 {
+                    double coreClockValue = double.TryParse(CoreClock.Replace(" Mhz", ""), out var coreClockParsed) ? coreClockParsed : 0;
+                    double memClockValue = double.TryParse(MemClock.Replace(" Mhz", ""), out var memClockParsed) ? memClockParsed : 0;
+
                     saveValues(
                         gpuTempValue.Value,
                         coreClockValue,

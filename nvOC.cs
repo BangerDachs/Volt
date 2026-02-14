@@ -11,16 +11,49 @@ using LibreHardwareMonitor.Hardware;
 
 namespace Volt
 {
+    
     public class NVOC
     {
-        private PhysicalGPU? gpu = PhysicalGPU.GetPhysicalGPUs().FirstOrDefault();
+        // Prüfen ob eine NVidia Grafikkarte vorhanden ist
+        private readonly PhysicalGPU? gpu;
+        private readonly bool _isNvidiaAvailable;
+
+        public bool IsNvidiaAvailable => _isNvidiaAvailable;
+
+        public NVOC()
+        {
+            try
+            {
+                gpu = PhysicalGPU.GetPhysicalGPUs().FirstOrDefault();
+                _isNvidiaAvailable = gpu != null;
+            }
+            catch (Exception)
+            {
+                gpu = null;
+                _isNvidiaAvailable = false;
+            }
+        }
 
         // *********************************************************************************************************************************
         // Treiber Version
         public string get_DriverVersion()
         { return DriverVersion(); }
         private string DriverVersion()
-        { return "Driver Version: " + (NVIDIA.DriverVersion / 100.0).ToString("F2"); } // Gibt Nummer in format XXX.XX zurück
+        {
+            if (!_isNvidiaAvailable)
+            {
+                return "Driver Version: N/A";
+            }
+
+            try
+            {
+                return "Driver Version: " + (NVIDIA.DriverVersion / 100.0).ToString("F2");
+            }
+            catch (Exception)
+            {
+                return "Driver Version: N/A";
+            }
+        } // Gibt Nummer in format XXX.XX zurück
 
         // *********************************************************************************************************************************
         // Fancontrol
