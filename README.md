@@ -35,6 +35,8 @@ Dieses Projekt dient der praktischen Vertiefung meiner Kenntnisse in:
 - WPF UI Entwicklung
 - Hardwarekommunikation
 - Verarbeitung technischer Daten
+##
+![Volt Screenshot](Volt1.png)
 
 ## Autor
 
