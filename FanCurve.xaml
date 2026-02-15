@@ -21,20 +21,12 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <StackPanel>
                 <TextBlock Text="Grafikkarte" Foreground="#E6E6E6" FontSize="16" FontWeight="SemiBold"/>
-                <Rectangle Height="2" Fill="#B7E12D" Margin="0,4,0,0"/>
+                <Rectangle Height="2" Fill="White" Margin="0,4,0,0"/>
             </StackPanel>
-
-            <Button Grid.Column="1" Content="Diagramm kopieren" Margin="8,0,8,0"
-                    Padding="12,6" Background="#4F5B62" Foreground="#E6E6E6"
-                    BorderBrush="#5B666D" BorderThickness="1"/>
-            <Button Grid.Column="2" Content="Diagramm einfügen" Margin="0,0,0,0"
-                    Padding="12,6" Background="#3B4247" Foreground="#9AA2A8"
-                    BorderBrush="#3F474D" BorderThickness="1" IsEnabled="False"/>
         </Grid>
 
         <!-- Control row -->
@@ -45,22 +37,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel>
-                <TextBlock Text="Temperaturquelle" Foreground="#9AA2A8" FontSize="11" Margin="0,0,0,2"/>
-                <ComboBox Height="26" Background="#2A2D2F" Foreground="#E6E6E6"
-                          BorderBrush="#40474C" BorderThickness="1">
-                    <ComboBoxItem Content="GPU Core"/>
-                </ComboBox>
-            </StackPanel>
-
-            <StackPanel Grid.Column="1" Margin="18,0,0,0">
-                <TextBlock Text="Hysterese" Foreground="#9AA2A8" FontSize="11" Margin="0,0,0,2"/>
-                <TextBlock Text="↕ 2 °C • 2 Sek." Foreground="#E6E6E6" FontSize="12"/>
-            </StackPanel>
-
-            <Button Grid.Column="2" Content="↕" Margin="12,0,0,0"
-                    Padding="8,4" Background="#2A2D2F" Foreground="#E6E6E6"
-                    BorderBrush="#40474C" BorderThickness="1"/>
+            <StackPanel Grid.Column="1" Margin="18,0,0,0"/>
         </Grid>
 
         <!-- Plot -->
@@ -76,23 +53,15 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel>
-                <TextBlock Text="Ausgewählter Punkt:" Foreground="#9AA2A8" FontSize="11"/>
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <TextBlock Text="Temp." Foreground="#9AA2A8" Margin="0,0,8,0"/>
-                    <TextBlock Text="45 °C" Foreground="#E6E6E6" Margin="0,0,24,0"/>
-                    <TextBlock Text="%" Foreground="#9AA2A8" Margin="0,0,8,0"/>
-                    <TextBlock Text="34 %" Foreground="#E6E6E6"/>
-                </StackPanel>
-            </StackPanel>
+            <StackPanel/>
 
             <Button Grid.Column="1" Content="Abbrechen" Margin="0,0,8,0"
-                    Padding="16,8" Background="#4F5B62" Foreground="#E6E6E6"
-                    BorderBrush="#5B666D" BorderThickness="1"
+                    Padding="16,8" Background="#FF565656" Foreground="#E6E6E6"
+                    BorderBrush="Black" BorderThickness="1"
                     Click="Cancel_Click" IsCancel="True"/>
             <Button Grid.Column="2" Content="Okay"
-                    Padding="16,8" Background="#B7E12D" Foreground="#202223"
-                    BorderBrush="#9BC51D" BorderThickness="1"
+                    Padding="16,8" Background="White" Foreground="#202223"
+                    BorderBrush="Black" BorderThickness="1"
                     Click="Ok_Click" IsDefault="True"/>
         </Grid>
     </Grid>

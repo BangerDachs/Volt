@@ -11,6 +11,7 @@
         <SolidColorBrush Opacity="0.5" Color="Gray"/>
     </Window.Background>
     <Grid>
+        <Grid x:Name="Grid_Background_FanCurve" Visibility="Hidden" Background="Transparent" />
         <!-- Treiber Version Anzeige Statusleiste -->
         <StackPanel x:Name="panel_driverV" Background="Black" Height="21" Width="Auto" VerticalAlignment="Top" MouseDown="panel_driverV_MouseDown">
             <StatusBar x:Name="topStatusBar" Width="auto" Margin="2,2,2,2" Height="auto" >

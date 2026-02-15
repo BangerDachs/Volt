@@ -74,10 +74,20 @@ namespace Volt
                 return;
             }
 
-            _gpu = _computer.Hardware.FirstOrDefault(hardware =>
-                hardware.HardwareType == HardwareType.GpuNvidia
-                || hardware.HardwareType == HardwareType.GpuAmd
-                || hardware.HardwareType == HardwareType.GpuIntel);
+            var gpus = _computer.Hardware
+                .Where(hardware => hardware.HardwareType is HardwareType.GpuNvidia
+                    or HardwareType.GpuAmd
+                    or HardwareType.GpuIntel)
+                .ToList();
+
+
+            // Priorität auf PCIe-GPUs, dann nach Hersteller
+            _gpu = gpus.FirstOrDefault(hardware => IsPciGpu(hardware) && hardware.HardwareType == HardwareType.GpuNvidia)
+                ?? gpus.FirstOrDefault(hardware => IsPciGpu(hardware) && hardware.HardwareType == HardwareType.GpuAmd)
+                ?? gpus.FirstOrDefault(hardware => IsPciGpu(hardware) && hardware.HardwareType == HardwareType.GpuIntel)
+                ?? gpus.FirstOrDefault(hardware => hardware.HardwareType == HardwareType.GpuNvidia)
+                ?? gpus.FirstOrDefault(hardware => hardware.HardwareType == HardwareType.GpuAmd)
+                ?? gpus.FirstOrDefault(hardware => hardware.HardwareType == HardwareType.GpuIntel);
 
             if (_gpu == null)
             {
@@ -143,6 +153,12 @@ namespace Volt
             }
 
             _sensorsInitialized = true;
+        }
+
+        private static bool IsPciGpu(IHardware hardware)
+        {
+            return hardware.Parent is not null
+                && hardware.Parent.HardwareType != HardwareType.Cpu;
         }
 
         private static string? FormatSensor(ISensor? sensor, string format)

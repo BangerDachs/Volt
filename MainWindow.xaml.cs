@@ -17,7 +17,7 @@ namespace Volt
         // imports
         private readonly UDefinition _udef = new();
         private readonly NVOC _nvoc = new();
-        private readonly AMD_GPU _AMD = new AMD_GPU(); // Muss noch ausgebaut werden
+        //private readonly AMD_GPU _AMD = new AMD_GPU(); // Muss noch ausgebaut werden
         private readonly LibreHW _hwinfo = new LibreHW();
         private readonly CancellationTokenSource _cts = new();
         private SettingsStore.Settings _settings = new(); // neu
@@ -57,9 +57,9 @@ namespace Volt
             { panel_fanControl.IsEnabled = false; }
 
             // Diagramm An/Aus 
-            //Grid_Background_FanCurve.Visibility = Visibility.Hidden;
-            //if (Grid_Background_FanCurve.Visibility == Visibility.Visible)
-            //{ show_GPU_FanCurve(); }
+            Grid_Background_FanCurve.Visibility = Visibility.Hidden;
+            if (Grid_Background_FanCurve.Visibility == Visibility.Visible)
+            { show_GPU_FanCurve(); }
 
             Loaded += (s, e) => Initialize(); // Initialisierung nach dem Laden MainWindow
 
