@@ -34,7 +34,7 @@ namespace Volt
         private ClockRow _rowLoad = null!;
         private ClockRow _rowMemory = null!;
 
-        // Array zum Speichern der Werte für Min, Max, AVG, Watt, Voltage werte
+        // Array zum Speichern der Werte für Min, Max, AVG, Watt, Voltage... werte
         private readonly double[] _minValues = new double[8];
         private readonly double[] _maxValues = new double[8];
         private readonly double[] _avgValues = new double[8];
@@ -74,7 +74,7 @@ namespace Volt
             Array.Clear(_avgValues);
             Array.Clear(_sampleCounts);
 
-            lb_driverV.Content = _nvoc.get_DriverVersion();
+            lb_driverV.Content = _nvoc.get_DriverVersion(); // Anzeige der aktuellen Treiberversion von Nvidia | AMD noch nicht implementiert
             InitializeClockRows();
 
             if (!_nvoc.IsNvidiaAvailable)
@@ -121,7 +121,7 @@ namespace Volt
             _rowVoltage = new ClockRow("Curr. Voltage", "--", "--", "--", "--");
             _rowPower = new ClockRow("Curr. Power", "--", "--", "--", "--");
             _rowLoad = new ClockRow("Curr. Load", "--", "--", "--", "--");
-            _rowMemory = new ClockRow("Curr. Memory", "--", "--", "--", "--");
+            _rowMemory = new ClockRow("VRAM Usage", "--", "--", "--", "--");
 
             _clockRows.Clear();
             _clockRows.Add(_rowGpuTemp);

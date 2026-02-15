@@ -1,13 +1,7 @@
 ﻿// Nur NvAPIWrapper
 using NvAPIWrapper;
 using NvAPIWrapper.GPU;
-using NvAPIWrapper.Native;               // für NvAPIStatus
-using NvAPIWrapper.Native.GPU;           // für GPU und PhysicalGPU
-using NvAPIWrapper.Native.GPU.Structures;
-using NvAPIWrapper.Native.Exceptions;    // für NvAPIException
-using System.Linq;
-using NvAPIWrapper.Native.General;
-using LibreHardwareMonitor.Hardware;
+using NvAPIWrapper.Native;
 
 namespace Volt
 {
@@ -47,19 +41,19 @@ namespace Volt
 
             try
             {
-                return "Driver Version: " + (NVIDIA.DriverVersion / 100.0).ToString("F2");
+                return "Driver Version: " + (NVIDIA.DriverVersion / 100.0).ToString("F2");// Gibt Nummer in format XXX.XX zurück bsp-> 581.86
             }
             catch (Exception)
             {
                 return "Driver Version: N/A";
             }
-        } // Gibt Nummer in format XXX.XX zurück
+        } 
 
         // *********************************************************************************************************************************
         // Fancontrol
         public string get_FanSpeed()
         { return GetFanSpeed(); }
-        private string GetFanSpeed()
+        private string GetFanSpeed() // Lüftergeschwindigkeit auslesen
         {
             if (gpu != null)
             {
@@ -72,7 +66,7 @@ namespace Volt
         // Setze Lüftergeschwindigkeit
         public void set_FanSpeed(int newSpeed)
         { Set_FanSpeed(newSpeed); }
-        private void Set_FanSpeed(int newSpeed)
+        private void Set_FanSpeed(int newSpeed) // Setze die Lüftergeschwindigkeit
         {
             if (gpu != null)
             {
@@ -96,7 +90,7 @@ namespace Volt
             }
         }
 
-        public void RestoreDefaultFanCurve()
+        public void RestoreDefaultFanCurve() // Setze die Lüfterkurve auf die Werkseinstellungen zurück
         {
             if (gpu?.CoolerInformation == null) return;
 
@@ -114,7 +108,7 @@ namespace Volt
         public void set_SetFan(int[] newCurve)
         { SetFan(newCurve); }
 
-        private void SetFan(int[] fanCurve)
+        private void SetFan(int[] fanCurve) // Setze die Lüftergeschwindigkeit basierend auf der Lüfterkurve
         {
             if (gpu != null)
             {
@@ -170,25 +164,11 @@ namespace Volt
             }
             return "N/A2";
         }
-        // *********************************************************************************************
-        // Hotspot Temperatur
-        public string get_GPUHotspotTemperature()
-        { return GPUHotspotTemperature(); }
-        private string GPUHotspotTemperature()
-        {
-            var hotspotSensor = gpu?.ThermalInformation?.ThermalSensors
-                .FirstOrDefault(s => s.SensorId == (int)SensorType.Temperature);
-
-            if (hotspotSensor != null)
-                return hotspotSensor.CurrentTemperature.ToString();
-
-            return "N/A";
-        }
         // *********************************************************************************************************************************
         // Clock Speed
         public string[] get_ClockSpeed()
         { return GetClockSpeed(); }
-        private string[] GetClockSpeed()
+        private string[] GetClockSpeed() // Aktuelle Taktraten der GPU auslesen
         {
             if (gpu != null)
             {
@@ -203,16 +183,16 @@ namespace Volt
                     }
                     return clk; // Rückgabe des Arrays
                 }
-                return new string[] { "N/A_1" }; // Rückgabe eines Arrays mit einer Standard-Nachricht
+                return new string[] { "N/A_1" }; 
             }
-            return new string[] { "N/A_2" }; // Rückgabe eines Arrays mit einer Standard-Nachricht
+            return new string[] { "N/A_2" }; 
         }
         // *********************************************************************************************************************************
         // Ausgabe Aktuelle GPU Spannung
         public string get_Voltage()
         { return GetVoltage(gpu); }
 
-        private string GetVoltage(PhysicalGPU gpu)
+        private string GetVoltage(PhysicalGPU? gpu)
         {
             if (gpu == null)
             { return "0.0"; }
@@ -230,7 +210,7 @@ namespace Volt
         public string get_PowerConsuption()
         { return PowerConsuption(gpu); }
 
-        private string PowerConsuption(PhysicalGPU gpu)
+        private string PowerConsuption(PhysicalGPU? gpu)
         {
             if (gpu == null)
             {
@@ -247,9 +227,10 @@ namespace Volt
             return "N/A";
         }
         // *********************************************************************************************************************************
+        // Ausgabe Aktuelle GPU Auslastung
         public string get_GPU_usage()
         { return GPU_usage(gpu); }
-        private string GPU_usage(PhysicalGPU gpu)
+        private string GPU_usage(PhysicalGPU? gpu)
         {
             if (gpu == null)
             { return "N/A"; }

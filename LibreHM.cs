@@ -1,14 +1,22 @@
-﻿using LibreHardwareMonitor;
-using LibreHardwareMonitor.Hardware;
-using NvAPIWrapper.Native.GPU;
-using System.Diagnostics;
-using System.Linq.Expressions;
+﻿using LibreHardwareMonitor.Hardware;
 
 namespace Volt
 {
     class LibreHW
     {
         private readonly Computer _computer;
+        private IHardware? _gpu;
+        private ISensor? _voltageSensor;
+        private ISensor? _currentSensor;
+        private ISensor? _powerSensor;
+        private ISensor? _memClockSensor;
+        private ISensor? _coreClockSensor;
+        private ISensor? _coreTempSensor;
+        private ISensor? _hotspotSensor;
+        private ISensor? _memTempSensor;
+        private ISensor? _loadSensor;
+        private ISensor? _memUsageSensor;
+        private bool _sensorsInitialized;
         public string GPU_voltage;
         public string GPU_current;
         public string GPU_power;
@@ -18,7 +26,6 @@ namespace Volt
         public string GPU_memTemp;
         public string GPU_load;
         public string GPU_freq;
-        public string GPU_fan;
         public string GPU_mem_usage;
         
 
@@ -35,93 +42,117 @@ namespace Volt
         // Frequency = 6,   Fan = 7,            Flow = 8,           Control = 9,    Level = 10,         Factor = 11,
         // Data = 12,       SmallData = 13,     Throughput = 14,    TimeSpan = 15,  Timing = 16,
         // Energy = 17,     Noise = 18,         Conductivity = 19,  Humidity = 20
-        public async Task Read_GPU_InformationAsync()
+        public Task Read_GPU_InformationAsync()
         {
-            await Task.Run(() =>
+            EnsureSensorsInitialized();
+
+            if (_gpu == null)
             {
-                foreach (var gpu in _computer.Hardware)
-                {
-                    if (gpu.HardwareType != HardwareType.GpuNvidia
-                        && gpu.HardwareType != HardwareType.GpuAmd
-                        && gpu.HardwareType != HardwareType.GpuIntel)
-                    {
-                        continue;
-                    }
+                return Task.CompletedTask;
+            }
 
-                    gpu.Update();
+            _gpu.Update();
 
-                    foreach (var sensor in gpu.Sensors)
-                    {
-                        if (!sensor.Value.HasValue)
-                        {
-                            continue;
-                        }
+            GPU_voltage = FormatSensor(_voltageSensor, "{0:F2} V") ?? GPU_voltage;
+            GPU_current = FormatSensor(_currentSensor, "{0:F2}") ?? GPU_current;
+            GPU_power = FormatSensor(_powerSensor, "{0:F2} W") ?? GPU_power;
+            GPU_memclock = FormatSensor(_memClockSensor, "{0:F2} Mhz") ?? GPU_memclock;
+            GPU_freq = FormatSensor(_coreClockSensor, "{0:F2} Mhz") ?? GPU_freq;
+            GPU_coreTemp = FormatSensor(_coreTempSensor, "{0:F0} °C") ?? GPU_coreTemp;
+            GPU_hotspot = FormatSensor(_hotspotSensor, "{0:F0} °C") ?? GPU_hotspot;
+            GPU_memTemp = FormatSensor(_memTempSensor, "{0:F0} °C") ?? GPU_memTemp;
+            GPU_load = FormatSensor(_loadSensor, "{0:F0} %") ?? GPU_load;
+            GPU_mem_usage = FormatSensor(_memUsageSensor, "{0:F0} MB") ?? GPU_mem_usage;
 
-                        switch (sensor.SensorType)
-                        {
-                            case SensorType.Voltage: //0
-                                GPU_voltage = $"{sensor.Value:F2} V";
-                                break;
-                            case SensorType.Current: //1
-                                GPU_current = $"{sensor.Value:F2}";
-                                break;
-                            case SensorType.Power: //2
-                                GPU_power = $"{sensor.Value:F2} W";
-                                break;
-                            case SensorType.Clock: //3
-                                if (sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
-                                    || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    GPU_memclock = $"{sensor.Value:F2} Mhz";
-                                }
-                                else
-                                {
-                                    GPU_freq = $"{sensor.Value:F2} Mhz";
-                                }
-                                break;
-                            case SensorType.Temperature: //4
-                                if (sensor.Name.Contains("hot spot", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    GPU_hotspot = $"{sensor.Value:F0} °C";
-                                }
-                                else if (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    GPU_coreTemp = $"{sensor.Value:F0} °C";
-                                }
-
-                                if (sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
-                                    || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    GPU_memTemp = $"{sensor.Value:F0} °C";
-                                }
-                                break;
-                            case SensorType.Load: //5
-                                GPU_load = $"{sensor.Value:F0} %";
-                                break;
-                            case SensorType.Frequency: //6
-                                if (sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
-                                    || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    GPU_memclock = $"{sensor.Value:F2} Mhz";
-                                }
-                                else
-                                {
-                                    GPU_freq = $"{sensor.Value:F2} Mhz";
-                                }
-                                break;
-                            case SensorType.SmallData: //13
-                                GPU_mem_usage = $"{sensor.Value:F0} MB";
-                                break;
-                   
-
-
-
-                        }
-                    }
-                }
-            });
+            return Task.CompletedTask;
         }
 
+        private void EnsureSensorsInitialized()
+        {
+            if (_sensorsInitialized)
+            {
+                return;
+            }
 
+            _gpu = _computer.Hardware.FirstOrDefault(hardware =>
+                hardware.HardwareType == HardwareType.GpuNvidia
+                || hardware.HardwareType == HardwareType.GpuAmd
+                || hardware.HardwareType == HardwareType.GpuIntel);
+
+            if (_gpu == null)
+            {
+                _sensorsInitialized = true;
+                return;
+            }
+
+            _gpu.Update();
+
+            foreach (var sensor in _gpu.Sensors)
+            {
+                switch (sensor.SensorType)
+                {
+                    case SensorType.Voltage:
+                        _voltageSensor ??= sensor;
+                        break;
+                    case SensorType.Current:
+                        _currentSensor ??= sensor;
+                        break;
+                    case SensorType.Power:
+                        _powerSensor ??= sensor;
+                        break;
+                    case SensorType.Clock:
+                    case SensorType.Frequency:
+                        if ((sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
+                            || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase))
+                            && _memClockSensor == null)
+                        {
+                            _memClockSensor = sensor;
+                        }
+                        else if (_coreClockSensor == null)
+                        {
+                            _coreClockSensor = sensor;
+                        }
+                        break;
+                    case SensorType.Temperature:
+                        if (sensor.Name.Contains("hot spot", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _hotspotSensor ??= sensor;
+                        }
+                        else if (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
+                            || sensor.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _coreTempSensor ??= sensor;
+                        }
+
+                        if (sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
+                            || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _memTempSensor ??= sensor;
+                        }
+                        break;
+                    case SensorType.Load:
+                        _loadSensor ??= sensor;
+                        break;
+                    case SensorType.SmallData:
+                        if (sensor.Name.Equals("D3D Dedicated Memory Used", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _memUsageSensor ??= sensor;
+                        }
+                        break;
+                }
+            }
+
+            _sensorsInitialized = true;
+        }
+
+        private static string? FormatSensor(ISensor? sensor, string format)
+        {
+            if (sensor?.Value is null)
+            {
+                return null;
+            }
+
+            return string.Format(format, sensor.Value.Value);
+        }
     }
 }
