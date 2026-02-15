@@ -84,11 +84,11 @@ namespace Volt
                                 {
                                     GPU_hotspot = $"{sensor.Value:F0} °C";
                                 }
-                                if (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
-                                    || sensor.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase))
+                                else if (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase))
                                 {
                                     GPU_coreTemp = $"{sensor.Value:F0} °C";
                                 }
+
                                 if (sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
                                     || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase))
                                 {

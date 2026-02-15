@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using ScottPlot;
 using Volt.Utils; // hinzufügen
 
@@ -25,6 +26,7 @@ namespace Volt
         private readonly ObservableCollection<ClockRow> _clockRows = new(); // ObservableCollection für die Anzeige der GPU-Informationen in DataGrid
         private ClockRow _rowGpuTemp = null!;
         private ClockRow _rowGPuHotSpot = null!;
+        private ClockRow _rowGPUMemTemp = null!;
         private ClockRow _rowCoreClock = null!;
         private ClockRow _rowMemClock = null!;
         private ClockRow _rowVoltage = null!;
@@ -36,7 +38,7 @@ namespace Volt
         private readonly double[] _minValues = new double[8];
         private readonly double[] _maxValues = new double[8];
         private readonly double[] _avgValues = new double[8];
-        private int _sampleCount;
+        private readonly int[] _sampleCounts = new int[8];
 
         // variables
         //Graph_FanCurve
@@ -70,7 +72,7 @@ namespace Volt
             Array.Fill(_minValues, double.MaxValue);
             Array.Fill(_maxValues, double.MinValue);
             Array.Clear(_avgValues);
-            _sampleCount = 0;
+            Array.Clear(_sampleCounts);
 
             lb_driverV.Content = _nvoc.get_DriverVersion();
             InitializeClockRows();
@@ -113,6 +115,7 @@ namespace Volt
         {
             _rowGpuTemp = new ClockRow("GPU Temperature", "--", "--", "--", "--");
             _rowGPuHotSpot = new ClockRow("Hotspot Temperature", "--", "--", "--", "--");
+            _rowGPUMemTemp = new ClockRow("VRam Temperature", "--", "--", "--", "--");
             _rowCoreClock = new ClockRow("Core Clock", "--", "--", "--", "--");
             _rowMemClock = new ClockRow("Memory Clock", "--", "--", "--", "--");
             _rowVoltage = new ClockRow("Curr. Voltage", "--", "--", "--", "--");
@@ -125,6 +128,10 @@ namespace Volt
             if (_rowGPuHotSpot.Value != "--") 
             {// Nur hinzufügen, wenn tatsächlich ein Wert für Hotspot-Temperatur vorhanden ist
                 _clockRows.Add(_rowGPuHotSpot); 
+            }
+            if (_rowGPUMemTemp.Value != "--")
+            {// Nur hinzufügen, wenn tatsächlich ein Wert für VRam-Temperatur vorhanden ist
+                _clockRows.Add(_rowGPUMemTemp);
             }
             _clockRows.Add(_rowCoreClock);
             _clockRows.Add(_rowMemClock);
@@ -142,73 +149,12 @@ namespace Volt
             {
                 while (!token.IsCancellationRequested)
                 {
-                    await _hwinfo.Read_GPU_InformationAsync();
-                    // Temperatur
-                    string gpuTempText = _hwinfo.GPU_coreTemp ?? "N/A";
-                    double? gpuTempValue = TryParseDoubleWithSuffix(gpuTempText, " °C");
-                    _mw._rowGpuTemp.Value = gpuTempValue.HasValue
-                        ? $"{gpuTempValue.Value:F1} °C"
-                        : gpuTempText;
+                    var snapshot = await CollectSnapshotAsync(token).ConfigureAwait(false);
 
-                    // Voltage
-                    string gpuVoltCurrStr = _hwinfo.GPU_voltage ?? "N/A";
-                    double gpuVoltCurr = TryParseDoubleWithSuffix(gpuVoltCurrStr, " V") ?? 0;
-                    _mw._rowVoltage.Value = gpuVoltCurrStr;
-
-                    // Load
-                    string gpuUsageStr = _hwinfo.GPU_load ?? _nvoc.get_GPU_usage();
-                    double gpuUsage = TryParseDoubleWithSuffix(gpuUsageStr, " %") ?? 0;
-                    _mw._rowLoad.Value = gpuUsageStr;
-
-                    // Clocks
-                    string coreClockText = _hwinfo.GPU_freq ?? "N/A";
-                    _mw._rowCoreClock.Value = coreClockText;
-
-                    string memClockText = _hwinfo.GPU_memclock ?? "N/A";
-                    _mw._rowMemClock.Value = memClockText;
-
-                    // Power
-                    var powerText = _hwinfo.GPU_power ?? "N/A";
-                    double rowPower = TryParseDoubleWithSuffix(powerText, " W") ?? 0;
-                    _mw._rowPower.Value = powerText;
-                    _mw._rowMemory.Value = _hwinfo.GPU_mem_usage ?? "N/A";
-
-                    // Fan Control
-                    if (_mw._settings.AutoFan && _mw._nvoc.IsNvidiaAvailable)
-                    {
-                        if (_mw._useFactoryCurve)
-                        {
-                            _mw._nvoc.RestoreDefaultFanCurve();
-                        }
-                        else if (gpuTempValue.HasValue)
-                        {
-                            int targetSpeed = GetFanSpeedForTemperature(gpuTempValue.Value, _mw._settings.FanCurve);
-                            _mw._nvoc.set_FanSpeed(targetSpeed);
-                        }
-
-                        var fanSpeedText = _mw._nvoc.get_FanSpeed();
-                        _mw.tb_fanSpeed.Text = fanSpeedText;
-                        if (TryParseInt(fanSpeedText) is int fanSpeed)
-                        {
-                            _mw.slider_fanSpeed.Value = fanSpeed;
-                        }
-                    }
-
-                    // Fix: Prüfe, ob gpuTempValue.HasValue, bevor saveValues aufgerufen wird
-                    if (gpuTempValue.HasValue)
-                    {
-                        double coreClockValue = TryParseDoubleWithSuffix(coreClockText, " Mhz") ?? 0;
-                        double memClockValue = TryParseDoubleWithSuffix(memClockText, " Mhz") ?? 0;
-
-                        saveValues(
-                            gpuTempValue.Value,
-                            coreClockValue,
-                            memClockValue,
-                            gpuVoltCurr,
-                            gpuUsage,
-                            rowPower
-                        );
-                    }
+                    await Dispatcher.InvokeAsync(
+                        () => ApplySnapshot(snapshot),
+                        DispatcherPriority.Background,
+                        token);
 
                     await Task.Delay(UDefinition.cUpdateInterval, token);
                 }
@@ -283,6 +229,176 @@ namespace Volt
                 _min = min;
                 _max = max;
             }
+        }
+
+        private sealed record GpuSnapshot(
+            string GpuTempText,
+            double? GpuTempValue,
+            string HotspotText,
+            double? HotspotValue,
+            string MemTempText,
+            double? MemTempValue,
+            string VoltageText,
+            double VoltageValue,
+            string LoadText,
+            double LoadValue,
+            string CoreClockText,
+            double CoreClockValue,
+            string MemClockText,
+            double MemClockValue,
+            string PowerText,
+            double PowerValue,
+            string MemoryUsageText,
+            string? FanSpeedText,
+            int? FanSpeedValue);
+
+        private async Task<GpuSnapshot> CollectSnapshotAsync(CancellationToken token)
+        {
+            await _hwinfo.Read_GPU_InformationAsync().ConfigureAwait(false);
+
+            string gpuTempText = _hwinfo.GPU_coreTemp ?? "N/A";
+            double? gpuTempValue = TryParseDoubleWithSuffix(gpuTempText, " °C");
+
+            string hotspotText = _hwinfo.GPU_hotspot ?? "N/A";
+            double? hotspotValue = TryParseDoubleWithSuffix(hotspotText, " °C");
+
+            string memTempText = _hwinfo.GPU_memTemp ?? "N/A";
+            double? memTempValue = TryParseDoubleWithSuffix(memTempText, " °C");
+
+            string gpuVoltCurrStr = _hwinfo.GPU_voltage ?? "N/A";
+            double gpuVoltCurr = TryParseDoubleWithSuffix(gpuVoltCurrStr, " V") ?? 0;
+
+            string gpuUsageStr = _hwinfo.GPU_load ?? _nvoc.get_GPU_usage();
+            double gpuUsage = TryParseDoubleWithSuffix(gpuUsageStr, " %") ?? 0;
+
+            string coreClockText = _hwinfo.GPU_freq ?? "N/A";
+            double coreClockValue = TryParseDoubleWithSuffix(coreClockText, " Mhz") ?? 0;
+
+            string memClockText = _hwinfo.GPU_memclock ?? "N/A";
+            double memClockValue = TryParseDoubleWithSuffix(memClockText, " Mhz") ?? 0;
+
+            var powerText = _hwinfo.GPU_power ?? "N/A";
+            double rowPower = TryParseDoubleWithSuffix(powerText, " W") ?? 0;
+
+            string memoryUsageText = _hwinfo.GPU_mem_usage ?? "N/A";
+
+            string? fanSpeedText = null;
+            int? fanSpeedValue = null;
+
+            if (_settings.AutoFan && _nvoc.IsNvidiaAvailable)
+            {
+                if (_useFactoryCurve)
+                {
+                    _nvoc.RestoreDefaultFanCurve();
+                }
+                else if (gpuTempValue.HasValue)
+                {
+                    int targetSpeed = GetFanSpeedForTemperature(gpuTempValue.Value, _settings.FanCurve);
+                    _nvoc.set_FanSpeed(targetSpeed);
+                }
+
+                fanSpeedText = _nvoc.get_FanSpeed();
+                fanSpeedValue = TryParseInt(fanSpeedText);
+            }
+
+            return new GpuSnapshot(
+                gpuTempText,
+                gpuTempValue,
+                hotspotText,
+                hotspotValue,
+                memTempText,
+                memTempValue,
+                gpuVoltCurrStr,
+                gpuVoltCurr,
+                gpuUsageStr,
+                gpuUsage,
+                coreClockText,
+                coreClockValue,
+                memClockText,
+                memClockValue,
+                powerText,
+                rowPower,
+                memoryUsageText,
+                fanSpeedText,
+                fanSpeedValue);
+        }
+
+        private void ApplySnapshot(GpuSnapshot snapshot)
+        {
+            _rowGpuTemp.Value = snapshot.GpuTempValue.HasValue
+                ? $"{snapshot.GpuTempValue.Value:F1} °C"
+                : snapshot.GpuTempText;
+
+            _rowVoltage.Value = snapshot.VoltageText;
+            _rowLoad.Value = snapshot.LoadText;
+            _rowCoreClock.Value = snapshot.CoreClockText;
+            _rowMemClock.Value = snapshot.MemClockText;
+            _rowPower.Value = snapshot.PowerText;
+            _rowMemory.Value = snapshot.MemoryUsageText;
+
+            if (HasValidValue(snapshot.HotspotText))
+            {
+                _rowGPuHotSpot.Value = snapshot.HotspotText;
+                if (!_clockRows.Contains(_rowGPuHotSpot))
+                {
+                    var insertIndex = _clockRows.IndexOf(_rowGpuTemp);
+                    _clockRows.Insert(insertIndex + 1, _rowGPuHotSpot);
+                }
+            }
+            else if (_clockRows.Contains(_rowGPuHotSpot))
+            {
+                _clockRows.Remove(_rowGPuHotSpot);
+            }
+
+            if (HasValidValue(snapshot.MemTempText))
+            {
+                _rowGPUMemTemp.Value = snapshot.MemTempText;
+                if (!_clockRows.Contains(_rowGPUMemTemp))
+                {
+                    var insertIndex = _clockRows.IndexOf(_rowGPuHotSpot);
+                    if (insertIndex < 0)
+                    {
+                        insertIndex = _clockRows.IndexOf(_rowGpuTemp);
+                    }
+
+                    _clockRows.Insert(insertIndex + 1, _rowGPUMemTemp);
+                }
+            }
+            else if (_clockRows.Contains(_rowGPUMemTemp))
+            {
+                _clockRows.Remove(_rowGPUMemTemp);
+            }
+
+            
+
+            if (_settings.AutoFan && _nvoc.IsNvidiaAvailable)
+            {
+                tb_fanSpeed.Text = snapshot.FanSpeedText ?? tb_fanSpeed.Text;
+                if (snapshot.FanSpeedValue.HasValue)
+                {
+                    slider_fanSpeed.Value = snapshot.FanSpeedValue.Value;
+                }
+            }
+
+            if (snapshot.GpuTempValue.HasValue)
+            {
+                saveValues(
+                    snapshot.GpuTempValue.Value,
+                    snapshot.CoreClockValue,
+                    snapshot.MemClockValue,
+                    snapshot.VoltageValue,
+                    snapshot.LoadValue,
+                    snapshot.PowerValue,
+                    snapshot.MemTempValue,
+                    snapshot.HotspotValue);
+            }
+        }
+
+        private static bool HasValidValue(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value)
+                && !string.Equals(value, "N/A", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(value, "--", StringComparison.Ordinal);
         }
         // *********************************************************************************************************************************
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -524,16 +640,18 @@ namespace Volt
             };
         }
 
-        private void saveValues(double gpuTempValue, double gpuClockValue, double memoryClockValue, double gpuVoltCurr, double gpuUsage, double rowPower)
-        {  // Werte in den Arrays aktualisieren und Min/Max/Avg berechnen
-            _sampleCount++;
-
+        private void saveValues(double gpuTempValue, double gpuClockValue, double memoryClockValue, double gpuVoltCurr, double gpuUsage, double rowPower, double? memTempValue, double? gpuHotspot)
+        {  // Werte in den Arrays einfügen, aktualisieren und Min/Max/Avg berechnen
             UpdateStats(0, gpuTempValue);
             UpdateStats(1, gpuClockValue);
             UpdateStats(2, memoryClockValue);
             UpdateStats(3, gpuVoltCurr);
             UpdateStats(4, gpuUsage);
             UpdateStats(5, rowPower);
+            UpdateStats(6, memTempValue); // VRAM-Temperatur hinzufügen
+            UpdateStats(7, gpuHotspot);
+
+
 
             _rowGpuTemp.Min = $"{_minValues[0]:F1}";
             _rowGpuTemp.Max = $"{_maxValues[0]:F1}";
@@ -558,13 +676,32 @@ namespace Volt
             _rowPower.Min = $"{_minValues[5]:F1}";
             _rowPower.Max = $"{_maxValues[5]:F1}";
             _rowPower.Avg = $"{_avgValues[5]:F1}";
+
+            if (_sampleCounts[6] > 0)
+            {
+                _rowGPUMemTemp.Min = $"{_minValues[6]:F1}";
+                _rowGPUMemTemp.Max = $"{_maxValues[6]:F1}";
+                _rowGPUMemTemp.Avg = $"{_avgValues[6]:F1}";
+            }
+
+            if (_sampleCounts[7] > 0)
+            {
+                _rowGPuHotSpot.Min = $"{_minValues[7]:F1}";
+                _rowGPuHotSpot.Max = $"{_maxValues[7]:F1}";
+                _rowGPuHotSpot.Avg = $"{_avgValues[7]:F1}";
+            }
         }
 
-        private void UpdateStats(int index, double value)
-        {
-            _minValues[index] = Math.Min(_minValues[index], value);
-            _maxValues[index] = Math.Max(_maxValues[index], value);
-            _avgValues[index] = ((_avgValues[index] * (_sampleCount - 1)) + value) / _sampleCount;
+        private void UpdateStats(int index, double? value)
+        {  // Min/Max/Avg für den angegebenen Index aktualisieren
+            if (!value.HasValue)
+                return;
+
+            _sampleCounts[index]++;
+            var current = value.Value;
+            _minValues[index] = Math.Min(_minValues[index], current);
+            _maxValues[index] = Math.Max(_maxValues[index], current);
+            _avgValues[index] = ((_avgValues[index] * (_sampleCounts[index] - 1)) + current) / _sampleCounts[index];
         }
     }
 }

@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:Volt"
         xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         mc:Ignorable="d"
-        Title="MainWindow" Height="240" Width="640"  WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True" ResizeMode="NoResize">
+        Title="MainWindow" Height="320" Width="640"  WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True" ResizeMode="NoResize">
     <Window.Background>
         <SolidColorBrush Opacity="0.5" Color="Gray"/>
     </Window.Background>
