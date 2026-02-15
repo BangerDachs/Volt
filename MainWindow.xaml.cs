@@ -512,7 +512,7 @@ namespace Volt
                 ApplyFanCurveIfEnabled();
         }
 
-        private static List<SettingsStore.FanCurvePoint> CreateDefaultFanCurve()
+        private static List<SettingsStore.FanCurvePoint> CreateDefaultFanCurve() // Standard-Lüfterkurve mit 5 Punkten erstellen
         {
             return new List<SettingsStore.FanCurvePoint>
             {
@@ -525,7 +525,7 @@ namespace Volt
         }
 
         private void saveValues(double gpuTempValue, double gpuClockValue, double memoryClockValue, double gpuVoltCurr, double gpuUsage, double rowPower)
-        {
+        {  // Werte in den Arrays aktualisieren und Min/Max/Avg berechnen
             _sampleCount++;
 
             UpdateStats(0, gpuTempValue);
