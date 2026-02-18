@@ -15,7 +15,7 @@
         <!-- Treiber Version Anzeige Statusleiste -->
         <StackPanel x:Name="panel_driverV" Background="Black" Height="21" Width="Auto" VerticalAlignment="Top" MouseDown="panel_driverV_MouseDown">
             <StatusBar x:Name="topStatusBar" Width="auto" Margin="2,2,2,2" Height="auto" >
-                <Label x:Name="lb_driverV" Content="Driver Version" Width="115" Padding="0,0,0,0" VerticalContentAlignment="Center" Height="15"/>
+                <Label x:Name="lb_driverV" Content="Driver Version" Width="auto" Padding="0,0,0,0" VerticalContentAlignment="Center" Height="15"/>
 
             </StatusBar>
         </StackPanel>

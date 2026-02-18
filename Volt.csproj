@@ -17,6 +17,7 @@
     <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
     <PackageReference Include="ScottPlot" Version="5.1.57" />
     <PackageReference Include="ScottPlot.WPF" Version="5.1.57" />
+    <PackageReference Include="System.Management" Version="10.0.2" />
     <PackageReference Include="XamlRadialProgressBar" Version="1.0.3" />
   </ItemGroup>
 

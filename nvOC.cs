@@ -41,7 +41,7 @@ namespace Volt
 
             try
             {
-                return "Driver Version: " + (NVIDIA.DriverVersion / 100.0).ToString("F2");// Gibt Nummer in format XXX.XX zurück bsp-> 581.86
+                return "Driver Version: NVidia " + (NVIDIA.DriverVersion / 100.0).ToString("F2");// Gibt Nummer in format XXX.XX zurück bsp-> 581.86
             }
             catch (Exception)
             {

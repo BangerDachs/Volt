@@ -1,4 +1,6 @@
 ﻿using LibreHardwareMonitor.Hardware;
+using Microsoft.Win32;
+using System.Management;
 
 namespace Volt
 {
@@ -65,6 +67,35 @@ namespace Volt
             GPU_mem_usage = FormatSensor(_memUsageSensor, "{0:F0} MB") ?? GPU_mem_usage;
 
             return Task.CompletedTask;
+        }
+
+        public string? GetAmdDriverVersion()
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher(
+                    "SELECT DriverVersion, AdapterCompatibility FROM Win32_VideoController");
+
+                foreach (ManagementObject result in searcher.Get())
+                {
+                    var compatibility = result["AdapterCompatibility"]?.ToString();
+                    if (compatibility is null)
+                    {
+                        continue;
+                    }
+
+                    if (compatibility.Contains("Advanced Micro Devices", StringComparison.OrdinalIgnoreCase)
+                        || compatibility.Contains("AMD", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "Driver Version AMD: " + result["DriverVersion"]?.ToString();
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return null;
         }
 
         private void EnsureSensorsInitialized()

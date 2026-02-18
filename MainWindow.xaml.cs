@@ -74,7 +74,11 @@ namespace Volt
             Array.Clear(_avgValues);
             Array.Clear(_sampleCounts);
 
-            lb_driverV.Content = _nvoc.get_DriverVersion(); // Anzeige der aktuellen Treiberversion von Nvidia | AMD noch nicht implementiert
+            var driverVersion = _nvoc.IsNvidiaAvailable
+                                ? _nvoc.get_DriverVersion()
+                                : _hwinfo.GetAmdDriverVersion() ?? "AMD Driver: N/A";
+            lb_driverV.Content = driverVersion;
+
             InitializeClockRows();
 
             if (!_nvoc.IsNvidiaAvailable)
