@@ -76,7 +76,7 @@ namespace Volt
 
             var driverVersion = _nvoc.IsNvidiaAvailable
                                 ? _nvoc.get_DriverVersion()
-                                : _hwinfo.GetAmdDriverVersion() ?? "AMD Driver: N/A";
+                                : _hwinfo.GetAmdDriverVersion() ?? "Driver: N/A";
             lb_driverV.Content = driverVersion;
 
             InitializeClockRows();
