@@ -80,9 +80,11 @@ namespace Volt
             if (!_nvoc.IsNvidiaAvailable)
             {
                 panel_fanControl.IsEnabled = false;
+                panel_fanControl.Visibility = Visibility.Hidden;
                 tb_fanSpeed.Text = "N/A";
                 slider_fanSpeed.IsEnabled = false;
                 slider_fanSpeed.Value = 0;
+                Width = 380;
             }
 
             if (_nvoc.IsNvidiaAvailable)
