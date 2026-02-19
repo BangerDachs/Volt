@@ -45,7 +45,7 @@ namespace Volt
         private FanCurve? _fanCurveWindow;
         private bool _useFactoryCurve;
 
-        // * * * * *
+        // * * * * * *
 
 
         public MainWindow()
