@@ -64,7 +64,7 @@ namespace Volt
             GPU_hotspot = FormatSensor(_hotspotSensor, "{0:F0} °C") ?? GPU_hotspot;
             GPU_memTemp = FormatSensor(_memTempSensor, "{0:F0} °C") ?? GPU_memTemp;
             GPU_load = FormatSensor(_loadSensor, "{0:F0} %") ?? GPU_load;
-            GPU_mem_usage = FormatSensor(_memUsageSensor, "{0:F0} MB") ?? GPU_mem_usage;
+            GPU_mem_usage = FormatMemoryUsageSensor(_memUsageSensor) ?? GPU_mem_usage;
 
             return Task.CompletedTask;
         }
@@ -198,6 +198,20 @@ namespace Volt
             {
                 return null;
             }
+
+            return string.Format(format, sensor.Value.Value);
+        }
+
+        private static string? FormatMemoryUsageSensor(ISensor? sensor)
+        {
+            if (sensor?.Value is null)
+            {
+                return null;
+            }
+
+            var format = sensor.SensorType == SensorType.Data
+                ? "{0:F2} GB"
+                : "{0:F0} MB";
 
             return string.Format(format, sensor.Value.Value);
         }
