@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Security.Principal;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -21,6 +22,7 @@ namespace Volt
         private readonly GpuMonitor _monitor;
         private readonly FanCurveService _fanCurveService = new();
         private readonly SettingsService _settingsService = new();
+        private readonly UpdateService _updateService = new("BangerDachs", "Volt");
         private readonly CancellationTokenSource _cts = new();
         private SettingsStore.Settings _settings = new(); // neu
 
@@ -80,6 +82,9 @@ namespace Volt
             lb_driverV.Content = driverVersion;
 
             InitializeClockRows();
+
+            lbl_version.Content = $"Version {GetAppVersion()}";
+            _ = _updateService.CheckForUpdatesAsync(this, _cts.Token);
 
             if (!_nvoc.IsNvidiaAvailable)
             {
@@ -511,6 +516,18 @@ namespace Volt
             _stats.Reset();
             _elapsedStopwatch.Restart();
             UpdateElapsedTime();
+        }
+        private static string GetAppVersion()
+        {
+            var version = Assembly.GetEntryAssembly()?.GetName().Version;
+            if (version is null)
+            {
+                return "N/A";
+            }
+
+            var build = version.Build >= 0 ? version.Build : 0;
+            var minor = version.Minor >= 0 ? version.Minor : 0;
+            return $"{version.Major}.{minor}.{build}";
         }
     }
 }

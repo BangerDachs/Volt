@@ -23,6 +23,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
+            <Label x:Name="lbl_version" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,2,2" Foreground="White" FontSize="10" />
         <Grid x:Name="Grid_Background_FanCurve" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Hidden" Background="Transparent" />
         <!-- Treiber Version Anzeige Statusleiste -->
         <StackPanel x:Name="panel_driverV" Grid.ColumnSpan="2" Background="Black" Height="21" Width="Auto" VerticalAlignment="Top" MouseDown="panel_driverV_MouseDown">
